@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virtual-immersion-contracts"
+version = "0.2.0"
+description = "Shared interaction and experiment contracts for the five-layer tactile stack"
+requires-python = ">=3.10"
+dependencies = ["jsonschema>=4.18,<5", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tactile_contract*", "contact_kernel*", "virtual_reality*", "interaction*",
+           "mechanics*", "std_tactile*", "actuators*", "scenarios*", "validation*"]
+
+[tool.setuptools.package-data]
+tactile_contract = ["schemas/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tactile_contract/tests", "contact_kernel/tests", "virtual_reality/tests",
+             "interaction/tests", "mechanics/tests", "validation/tests"]
+pythonpath = ["."]

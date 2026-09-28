@@ -1,0 +1,142 @@
+{
+  "schema": "k1-run-index/v1",
+  "run_id": "k1-single-probe-cpu",
+  "scenario": {
+    "description": "K1 single sphere probe against a fixed cube top face, rigid impulse mode, CPU reference kernel",
+    "id": "k1_single_probe_rigid",
+    "version": "k1.0"
+  },
+  "backend": {
+    "id": "rigid_cpu_v1",
+    "version": "k1.0"
+  },
+  "spec_id": "k1_single_probe_cpu",
+  "spec_sha256": "da9a776bca62b97bab95f60ad2ef7bdb3760425b468a5390796f92740fe3331e",
+  "conditions_sha256": "1630ff1c88ed058077c5622330c5db000b019734f6341510d8625e206b73192d",
+  "manifest_sha256": "dae215b51d143712263c84933b6db39edd84fbb125c277fd40ff0add2eb8bfe8",
+  "run_directory": "k1-single-probe-cpu",
+  "frames": 472,
+  "simulated_time_s": 7.866666666666666,
+  "substeps_per_control": 1,
+  "loop_state": "completed",
+  "abort_reason": "",
+  "stage_table": [
+    {
+      "layer": 1,
+      "stage_id": "declared_trajectory_world",
+      "status": "ok"
+    },
+    {
+      "layer": 2,
+      "stage_id": "rigid_cpu_kernel_adapter",
+      "status": "ok"
+    },
+    {
+      "layer": 3,
+      "stage_id": "rigid_constraint_baseline_v1",
+      "status": "ok"
+    },
+    {
+      "layer": 4,
+      "stage_id": "normal_force_target_v1",
+      "status": "ok"
+    },
+    {
+      "layer": 5,
+      "stage_id": "single_axis_ideal_first_order_v0",
+      "status": "ok"
+    }
+  ],
+  "segments": {
+    "pre_contact": 30,
+    "approach": 175,
+    "hold": 60,
+    "lateral_slide": 60,
+    "retract": 117,
+    "released": 30
+  },
+  "gates": {
+    "run_completes_declared_program": true,
+    "single_probe_contact_appears": true,
+    "hold_contact_is_stable": true,
+    "contact_coverage_meets_threshold": true,
+    "slide_speed_meets_threshold": true,
+    "release_clears_contact_force": true,
+    "force_matches_impulse_and_is_conserved": true,
+    "time_step_does_not_change_data_semantics": true,
+    "interaction_state_replays_completely": true
+  },
+  "all_passed": true,
+  "artifacts": [
+    {
+      "path": "streams/probe0_surface.jsonl",
+      "role": "interaction_frames",
+      "sha256": "59f7e05eba80c2aa4b7ef3362bdc8484fb26aa6de1648b45d3f29c3e8f834a50"
+    },
+    {
+      "path": "stream_index.json",
+      "role": "summary",
+      "sha256": "dc159f9915a266f132190bfc36c375fcef519fcfd1d2864e44e18234e275755a"
+    },
+    {
+      "path": "effective_runtime.json",
+      "role": "summary",
+      "sha256": "f16e3ce98f782d748d48420f69295dc1409520f7a3f80a7af8eeee454307cfce"
+    },
+    {
+      "path": "acceptance.json",
+      "role": "summary",
+      "sha256": "5cfc6ebd7e2361db6154afb0e3ffc6071a578089cb6abd3102c3cc083ed22971"
+    },
+    {
+      "path": "environment.json",
+      "role": "summary",
+      "sha256": "35321ea2982793ac63e59d9aa0f93be732b64f9b75e265f3849ef9bcbbdab1e5"
+    },
+    {
+      "path": "actual_commands.jsonl",
+      "role": "trajectory",
+      "sha256": "3265f3df5be525d19b331a21087442ade9230b2a5d68b8849c7180e71e8b88d7"
+    },
+    {
+      "path": "points.csv",
+      "role": "raw_backend",
+      "sha256": "ae0dcaa7bd3393ffcfbf6b6f6476de57bf43e5b6cc83a4ca7fb5db7d5bcc1cbf"
+    },
+    {
+      "path": "cells.csv",
+      "role": "raw_backend",
+      "sha256": "7d6150b970cb616f5991d1950c3cc745ef118b51668b9fe4136735d052b34bd7"
+    },
+    {
+      "path": "patches.csv",
+      "role": "raw_backend",
+      "sha256": "11e687560fb134478558ae9f36cec6aae7009bf93a3cc2ab0638a85f187672cd"
+    },
+    {
+      "path": "episodes.csv",
+      "role": "raw_backend",
+      "sha256": "a3b840a9c32c3e166e8825d5a76d6bd1ecc18fa027e9813550658bcf4ba27053"
+    },
+    {
+      "path": "kinematics.jsonl",
+      "role": "log",
+      "sha256": "f93106289ee83aec7cd4e2dff55677a8d432858e0bcc014bb8b49b1995829d5d"
+    },
+    {
+      "path": "material_response.jsonl",
+      "role": "log",
+      "sha256": "c7071b4befd0015bb43adbb4e250e88dd828f9c2357311b1c51f6f03253d8a8e"
+    },
+    {
+      "path": "tactile_target.jsonl",
+      "role": "log",
+      "sha256": "a8733399f60a94ad085bee0636712bd0ff3ddc52595d5bee38755584f04f6075"
+    },
+    {
+      "path": "actuator_io.jsonl",
+      "role": "log",
+      "sha256": "fde9b32a10cf83954df141fcd71490bccfa4aa688331c0fef682f92fd462cf40"
+    }
+  ]
+}

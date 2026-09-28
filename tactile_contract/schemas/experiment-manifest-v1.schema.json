@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://virtual-immersion.local/schema/experiment-manifest/v1",
+  "title": "Experiment Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "scenario",
+    "conditions_sha256",
+    "backend",
+    "conditions",
+    "observables",
+    "acceptance",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "experiment-manifest/v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "description"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "conditions_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "conditions": {"type": "object"},
+    "observables": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["definition_id", "unit", "method", "support_id", "group"],
+        "properties": {
+          "definition_id": {"type": "string", "minLength": 1},
+          "unit": {"type": "string", "minLength": 1},
+          "method": {"type": "string", "minLength": 1},
+          "support_id": {"type": "string", "minLength": 1},
+          "group": {"enum": ["contact", "geometry", "force", "kinematics", "deformation", "pressure", "pressure_field", "deformation_field"]}
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_frames", "required_observables", "max_missing_frame_fraction"],
+      "properties": {
+        "expected_frames": {"type": "integer", "minimum": 1},
+        "required_observables": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "max_missing_frame_fraction": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "role": {"enum": ["interaction_frames", "raw_backend", "summary", "trajectory", "log"]},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

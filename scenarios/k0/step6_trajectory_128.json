@@ -1,0 +1,388 @@
+{
+  "acceptance": {
+    "contact_coverage_min": 0.95,
+    "force_conservation_atol_n": 1e-05,
+    "hold_tangent_speed_max_mps": 0.005,
+    "patch_coverage_min": 0.9,
+    "release_contact_frames_max": 0,
+    "resolution_force_spread_max": 0.1,
+    "slide_settle_time_s": 0,
+    "slide_speed_pass_fraction_min": 0.9,
+    "slide_speed_tolerance_mps": 0.01
+  },
+  "backend_id": "isaac_sim_step6",
+  "controller": {
+    "drive_semantics": "overwrite_linear_velocity_once_per_control_step",
+    "feedback_delay_steps": 1,
+    "force": null,
+    "mode": "trajectory",
+    "parameters": {
+      "approach_speed_mps": 0.2,
+      "approach_timeout_s": 5.0,
+      "contact_maintain_speed_mps": 0.02,
+      "gravity_compensation_mps2": 9.81,
+      "hold_time_s": 1.0,
+      "initial_slide_command_speed_mps": null,
+      "max_slide_command_speed_mps": 0.12,
+      "pre_settle_time_s": 0.5,
+      "release_time_s": 0.5,
+      "retract_speed_mps": 0.3,
+      "slide_speed_mps": 0.05,
+      "slide_time_s": 1.0,
+      "tangent_speed_feedback_kp": 1.0
+    },
+    "phase_order": [
+      "pre_contact",
+      "approach",
+      "hold",
+      "lateral_slide",
+      "retract",
+      "released"
+    ]
+  },
+  "coordinates": {
+    "basis_world": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ],
+    "handedness": "right",
+    "local_origin_world_m": [
+      0,
+      0,
+      0.25
+    ],
+    "normal_world": [
+      0,
+      0,
+      1
+    ],
+    "quaternion_order": "wxyz",
+    "surface_z_world_m": 0.5,
+    "units": "SI",
+    "up_axis": "Z"
+  },
+  "description": "Source-derived intended regression configuration, not measured simulation evidence.",
+  "grid": {
+    "area_method": "point_occupancy",
+    "cell_area_m2": 1.52587890625e-05,
+    "cell_size_m": 0.00390625,
+    "col_axis": "x",
+    "cols": 128,
+    "connectivity": 4,
+    "edge_policy": "phase1_clamp",
+    "origin_local_m": [
+      -0.25,
+      -0.25,
+      0.25
+    ],
+    "row_axis": "y",
+    "rows": 128
+  },
+  "kind": "source_inventory",
+  "parameter_evidence": {
+    "approach_speed": "scripts/step6_3.py:109 argparse default",
+    "approach_timeout": "scripts/step6_3.py:121 argparse default",
+    "contact_maintain_speed": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "control_mode": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "direction_threshold": "scripts/step6_3.py:128 argparse default",
+    "filter_alpha": "scripts/step6_3.py:129 argparse default",
+    "force_change_threshold": "scripts/step6_3.py:124 argparse default",
+    "force_integral_limit": "scripts/step6_3.py:99 argparse default",
+    "force_ki": "scripts/step6_3.py:98 argparse default",
+    "force_kp": "scripts/step6_3.py:97 argparse default",
+    "force_threshold": "scripts/step6_3.py:123 argparse default",
+    "force_tolerance": "scripts/step6_3.py:96 argparse default",
+    "geometry": "scripts/step6_3.py module constants/create_scene",
+    "grid": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "hold_time": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "kinematics_source": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "match_distance": "scripts/step6_3.py:125 argparse default",
+    "max_correct_speed": "scripts/step6_3.py:101 argparse default",
+    "max_duration_s": "Phase 2 watchdog budget, not a historical run duration",
+    "max_gap_frames": "scripts/step6_3.py:126 argparse default",
+    "max_hold_tangent_speed": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "max_press_speed": "scripts/step6_3.py:100 argparse default",
+    "max_slide_command_speed": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "min_contact_coverage": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "min_slide_force_in_tolerance": "scripts/step6_3.py:104 argparse default",
+    "min_slide_speed_in_tolerance": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "pre_settle_time": "scripts/step6_3.py:119 argparse default",
+    "print_every": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "probe_angular_mode": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "reference_body_mode": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "regulate_timeout": "scripts/step6_3.py:103 argparse default",
+    "release_time": "scripts/step6_3.py:120 argparse default",
+    "retract_speed": "scripts/step6_3.py:118 argparse default",
+    "runtime": "unresolved means engine defaults or constructor defaults not captured",
+    "settle_frames": "scripts/step6_3.py:102 argparse default",
+    "slide_speed": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "slide_speed_tolerance": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "slide_threshold": "scripts/step6_3.py:127 argparse default",
+    "slide_time": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "tangent_speed_feedback_kp": "scripts/run_step6_regression.py:138 trajectory_command override",
+    "target_force": "scripts/step6_3.py:95 argparse default"
+  },
+  "phase": "phase2",
+  "probes": [
+    {
+      "angular_mode": "locked",
+      "id": "/World/Fingertip",
+      "initial_position_world_m": [
+        0,
+        0,
+        1.2
+      ],
+      "mass_kg": 0.05,
+      "radius_m": 0.12,
+      "retract_distance_m": 0.58,
+      "shape": "sphere",
+      "size_m": null,
+      "z_contact_m": 0.62
+    }
+  ],
+  "required_run_artifacts": [
+    "effective_runtime.json",
+    "actual_commands.jsonl",
+    "stream_index.json",
+    "streams/*.jsonl",
+    "points.csv",
+    "cells.csv",
+    "patches.csv",
+    "episodes.csv",
+    "kinematics.jsonl",
+    "acceptance.json",
+    "environment.json"
+  ],
+  "runtime": {
+    "angular_damping_per_s": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "ccd_mode": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "contact_offset_m": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "dynamic_friction": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "friction_combine_mode": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "gravity_mps2": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "initial_linear_velocity_mps": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "initial_orientation_wxyz": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "linear_damping_per_s": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "max_depenetration_velocity_mps": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "position_iterations": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "rest_offset_m": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "restitution": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "restitution_combine_mode": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "sleep_enabled": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "solver_type": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "static_friction": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    },
+    "velocity_iterations": {
+      "evidence": "Not explicitly set in scene. Capture effective runtime value before numeric parity claims.",
+      "status": "unresolved",
+      "value": null
+    }
+  },
+  "sampling": {
+    "direction_threshold_m": 0.0001,
+    "filter_alpha": 0.5,
+    "force_definition": "sum_contact_impulses_over_output_interval",
+    "force_threshold_n": 0.05,
+    "kinematics_source": "rigid_body",
+    "max_gap_frames": 3,
+    "point_match_distance_m": 0.04,
+    "slide_threshold_mps": 0.005
+  },
+  "schema_version": "experiment-spec/v1",
+  "source_arguments": {
+    "approach_speed": 0.2,
+    "approach_timeout": 5.0,
+    "contact_maintain_speed": 0.02,
+    "control_mode": "trajectory",
+    "direction_threshold": 0.0001,
+    "filter_alpha": 0.5,
+    "force_change_threshold": 0.01,
+    "force_integral_limit": 2.0,
+    "force_ki": 0.1,
+    "force_kp": 0.2,
+    "force_threshold": 0.05,
+    "force_tolerance": 0.05,
+    "grid": 128,
+    "hold_time": 1.0,
+    "kinematics_source": "rigid_body",
+    "match_distance": 0.04,
+    "max_correct_speed": 0.12,
+    "max_gap_frames": 3,
+    "max_hold_tangent_speed": 0.005,
+    "max_press_speed": 0.15,
+    "max_slide_command_speed": 0.12,
+    "min_contact_coverage": 0.95,
+    "min_slide_force_in_tolerance": 0.9,
+    "min_slide_speed_in_tolerance": 0.9,
+    "pre_settle_time": 0.5,
+    "print_every": 10,
+    "probe_angular_mode": "locked",
+    "reference_body_mode": "fixed",
+    "regulate_timeout": 15.0,
+    "release_time": 0.5,
+    "retract_speed": 0.3,
+    "settle_frames": 5,
+    "slide_speed": 0.05,
+    "slide_speed_tolerance": 0.01,
+    "slide_threshold": 0.005,
+    "slide_time": 1.0,
+    "tangent_speed_feedback_kp": 1.0,
+    "target_force": 1.0
+  },
+  "source_files": [
+    {
+      "path": "scripts/step6_3.py",
+      "sha256": "68ffc07ae775388cdcaffe168da83cf183895fd690a47be17c97a9a4fff99d49"
+    },
+    {
+      "path": "scripts/run_step6_regression.py",
+      "sha256": "2f75e98025cf2b5321778d3f906b7a31f199847d123d5f6fa7931c85e5602bbd"
+    },
+    {
+      "path": "src/nerv_tactile/controllers.py",
+      "sha256": "3f4f3ee1463fd9ab7776893778802a9e075ce1c93decc766a40a83782e142ab4"
+    },
+    {
+      "path": "src/nerv_tactile/interfaces.py",
+      "sha256": "53ea0c3bb846286b098178d102bcb376d7c626d3a185f885cf8186ed83b604be"
+    },
+    {
+      "path": "src/nerv_tactile/geometry.py",
+      "sha256": "88173d154e6e7025d883834795f08069857ec018c78a864e1eaa364c0e3f948c"
+    },
+    {
+      "path": "src/nerv_tactile/contact_reader.py",
+      "sha256": "0444dddac38284a450b2bb6eeb0adb81d841893bae5c3ddd7809d6bb0dce43a4"
+    },
+    {
+      "path": "src/nerv_tactile/aggregation.py",
+      "sha256": "10bca39afdc10589b4b4faf3f61b5843b978abeeeba767ab06345e6e40605021"
+    },
+    {
+      "path": "src/nerv_tactile/tracking.py",
+      "sha256": "b5aed7a63992a660aae86410767585d01d0176c96095ae7845e5b9f90a05edbd"
+    },
+    {
+      "path": "environment/isaacsim_4090.json",
+      "sha256": "3422c96e93b37917fd05e7daca7e32f4f6672e6ec1010096d527590b4a34f6f8"
+    }
+  ],
+  "spec_id": "step6_trajectory_128",
+  "spec_sha256": "185b1bb4464af4a9ff03f84500b1bd91d4838caccc3310adbb00cede7fed5d0b",
+  "streams": [
+    {
+      "body0": "/World/Fingertip",
+      "body1": "/World/Cube",
+      "frame_schema": "interaction-state/v2",
+      "id": "probe0_surface",
+      "path_template": "streams/probe0_surface.jsonl"
+    }
+  ],
+  "surface": {
+    "center_world_m": [
+      0,
+      0,
+      0.25
+    ],
+    "id": "/World/Cube",
+    "mass_kg": null,
+    "motion": "fixed",
+    "shape": "box",
+    "size_m": [
+      0.5,
+      0.5,
+      0.5
+    ]
+  },
+  "timing": {
+    "control_dt_s": 0.016666666666666666,
+    "max_duration_s": 20,
+    "output_dt_s": 0.016666666666666666,
+    "physics_dt_s": 0.016666666666666666,
+    "sequence_start": 0,
+    "start_time_s": 0,
+    "stop_policy": "controller_done_or_timeout",
+    "substeps_per_control": 1,
+    "timestamp": "interval_end"
+  }
+}

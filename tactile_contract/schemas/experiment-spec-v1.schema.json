@@ -1,0 +1,1374 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "experiment-spec/v1"
+    },
+    "spec_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "spec_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "kind": {
+      "enum": [
+        "source_inventory",
+        "cpu_reference"
+      ]
+    },
+    "phase": {
+      "const": "phase2"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "backend_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "coordinates": {
+      "type": "object",
+      "properties": {
+        "units": {
+          "const": "SI"
+        },
+        "handedness": {
+          "const": "right"
+        },
+        "up_axis": {
+          "const": "Z"
+        },
+        "quaternion_order": {
+          "const": "wxyz"
+        },
+        "basis_world": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "local_origin_world_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "surface_z_world_m": {
+          "type": "number"
+        },
+        "normal_world": {
+          "const": [
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "required": [
+        "units",
+        "handedness",
+        "up_axis",
+        "quaternion_order",
+        "basis_world",
+        "local_origin_world_m",
+        "surface_z_world_m",
+        "normal_world"
+      ],
+      "additionalProperties": false
+    },
+    "surface": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shape": {
+          "const": "box"
+        },
+        "motion": {
+          "const": "fixed"
+        },
+        "center_world_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "size_m": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "mass_kg": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "id",
+        "shape",
+        "motion",
+        "center_world_m",
+        "size_m",
+        "mass_kg"
+      ],
+      "additionalProperties": false
+    },
+    "probes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "shape": {
+            "enum": [
+              "sphere",
+              "box"
+            ]
+          },
+          "mass_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "radius_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size_m": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "minItems": 3,
+                "maxItems": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "initial_position_world_m": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "angular_mode": {
+            "const": "locked"
+          },
+          "z_contact_m": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "retract_distance_m": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "shape",
+          "mass_kg",
+          "radius_m",
+          "size_m",
+          "initial_position_world_m",
+          "angular_mode",
+          "z_contact_m",
+          "retract_distance_m"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "shape": {
+                  "const": "sphere"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "radius_m": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "size_m": {
+                  "type": "null"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "radius_m": {
+                  "type": "null"
+                },
+                "size_m": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 1
+    },
+    "streams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body0": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body1": {
+            "type": "string",
+            "minLength": 1
+          },
+          "frame_schema": {
+            "const": "interaction-state/v2"
+          },
+          "path_template": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "body0",
+          "body1",
+          "frame_schema",
+          "path_template"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "start_time_s": {
+          "const": 0
+        },
+        "physics_dt_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "control_dt_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "output_dt_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "substeps_per_control": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stop_policy": {
+          "const": "controller_done_or_timeout"
+        },
+        "max_duration_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "timestamp": {
+          "const": "interval_end"
+        },
+        "sequence_start": {
+          "const": 0
+        }
+      },
+      "required": [
+        "start_time_s",
+        "physics_dt_s",
+        "control_dt_s",
+        "output_dt_s",
+        "substeps_per_control",
+        "stop_policy",
+        "max_duration_s",
+        "timestamp",
+        "sequence_start"
+      ],
+      "additionalProperties": false
+    },
+    "controller": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "trajectory",
+            "force",
+            "multi_trajectory"
+          ]
+        },
+        "drive_semantics": {
+          "const": "overwrite_linear_velocity_once_per_control_step"
+        },
+        "feedback_delay_steps": {
+          "const": 1
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pre_settle_time_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "approach_timeout_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "hold_time_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "slide_time_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "release_time_s": {
+              "type": "number",
+              "minimum": 0
+            },
+            "approach_speed_mps": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "slide_speed_mps": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "retract_speed_mps": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "contact_maintain_speed_mps": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gravity_compensation_mps2": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "tangent_speed_feedback_kp": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max_slide_command_speed_mps": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "initial_slide_command_speed_mps": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "pre_settle_time_s",
+            "approach_timeout_s",
+            "hold_time_s",
+            "slide_time_s",
+            "release_time_s",
+            "approach_speed_mps",
+            "slide_speed_mps",
+            "retract_speed_mps",
+            "contact_maintain_speed_mps",
+            "gravity_compensation_mps2",
+            "tangent_speed_feedback_kp",
+            "max_slide_command_speed_mps",
+            "initial_slide_command_speed_mps"
+          ],
+          "additionalProperties": false
+        },
+        "force": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "target_force_n": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "force_tolerance_n": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "force_kp_m_per_ns": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "force_ki_m_per_ns2": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "force_integral_limit_ns": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "max_press_speed_mps": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "max_correct_speed_mps": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "settle_frames": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "regulate_timeout_s": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "target_force_n",
+                "force_tolerance_n",
+                "force_kp_m_per_ns",
+                "force_ki_m_per_ns2",
+                "force_integral_limit_ns",
+                "max_press_speed_mps",
+                "max_correct_speed_mps",
+                "settle_frames",
+                "regulate_timeout_s"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase_order": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "drive_semantics",
+        "feedback_delay_steps",
+        "parameters",
+        "force",
+        "phase_order"
+      ],
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "gravity_mps2": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "static_friction": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "dynamic_friction": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "restitution": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "linear_damping_per_s": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "angular_damping_per_s": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "initial_linear_velocity_mps": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "initial_orientation_wxyz": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 4,
+                  "maxItems": 4
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "contact_offset_m": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "rest_offset_m": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "solver_type": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "position_iterations": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "velocity_iterations": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "sleep_enabled": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "ccd_mode": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "friction_combine_mode": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "restitution_combine_mode": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "max_depenetration_velocity_mps": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "source_explicit",
+                "unresolved",
+                "design_choice"
+              ]
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "status",
+            "evidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "gravity_mps2",
+        "static_friction",
+        "dynamic_friction",
+        "restitution",
+        "linear_damping_per_s",
+        "angular_damping_per_s",
+        "initial_linear_velocity_mps",
+        "initial_orientation_wxyz",
+        "contact_offset_m",
+        "rest_offset_m",
+        "solver_type",
+        "position_iterations",
+        "velocity_iterations",
+        "sleep_enabled",
+        "ccd_mode",
+        "friction_combine_mode",
+        "restitution_combine_mode",
+        "max_depenetration_velocity_mps"
+      ],
+      "additionalProperties": false
+    },
+    "grid": {
+      "type": "object",
+      "properties": {
+        "rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cell_size_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "cell_area_m2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "origin_local_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "row_axis": {
+          "const": "y"
+        },
+        "col_axis": {
+          "const": "x"
+        },
+        "area_method": {
+          "const": "point_occupancy"
+        },
+        "connectivity": {
+          "const": 4
+        },
+        "edge_policy": {
+          "enum": [
+            "phase1_clamp",
+            "reject_outside_top_face"
+          ]
+        }
+      },
+      "required": [
+        "rows",
+        "cols",
+        "cell_size_m",
+        "cell_area_m2",
+        "origin_local_m",
+        "row_axis",
+        "col_axis",
+        "area_method",
+        "connectivity",
+        "edge_policy"
+      ],
+      "additionalProperties": false
+    },
+    "sampling": {
+      "type": "object",
+      "properties": {
+        "force_threshold_n": {
+          "type": "number",
+          "minimum": 0
+        },
+        "point_match_distance_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_gap_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "slide_threshold_mps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "direction_threshold_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "filter_alpha": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "kinematics_source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "force_definition": {
+          "const": "sum_contact_impulses_over_output_interval"
+        }
+      },
+      "required": [
+        "force_threshold_n",
+        "point_match_distance_m",
+        "max_gap_frames",
+        "slide_threshold_mps",
+        "direction_threshold_m",
+        "filter_alpha",
+        "kinematics_source",
+        "force_definition"
+      ],
+      "additionalProperties": false
+    },
+    "acceptance": {
+      "type": "object",
+      "properties": {
+        "contact_coverage_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "slide_speed_tolerance_mps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "slide_speed_pass_fraction_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hold_tangent_speed_max_mps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "slide_settle_time_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "patch_coverage_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "force_conservation_atol_n": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "resolution_force_spread_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "release_contact_frames_max": {
+          "const": 0
+        }
+      },
+      "required": [
+        "contact_coverage_min",
+        "slide_speed_tolerance_mps",
+        "slide_speed_pass_fraction_min",
+        "hold_tangent_speed_max_mps",
+        "slide_settle_time_s",
+        "patch_coverage_min",
+        "force_conservation_atol_n",
+        "resolution_force_spread_max",
+        "release_contact_frames_max"
+      ],
+      "additionalProperties": false
+    },
+    "source_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "source_arguments": {
+      "type": "object"
+    },
+    "parameter_evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required_run_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "spec_id",
+    "spec_sha256",
+    "kind",
+    "phase",
+    "description",
+    "backend_id",
+    "coordinates",
+    "surface",
+    "probes",
+    "streams",
+    "timing",
+    "controller",
+    "runtime",
+    "grid",
+    "sampling",
+    "acceptance",
+    "source_files",
+    "source_arguments",
+    "parameter_evidence",
+    "required_run_artifacts"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "K0 Experiment Specification v1"
+}

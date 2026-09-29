@@ -16,7 +16,10 @@
 - [x] 阈值台账：规格 `acceptance` 的每个键要么被门槛消费，要么登记为显式延后；`all_passed` 同时要求所有单轮门槛均已发出。
 - [x] 运行时字段三分类裁决（`enforced` / `recorded_inert` / `single_implementation`），不支持的取值在加载期拒绝，分类写入 `effective_runtime.json`。
 - [x] `rigid_body` 与 `finite_difference` 两种运动学来源都真正实现，未选中的一个保留为交叉校验。
-- [x] 内核、层 1 裁决、层 2 来源、实验装配与验收五组测试，共 118 个测试。
+- [x] 内核、层 1 裁决与命令上限、层 2 来源、实验装配与验收六组测试，共 134 个测试。
+- [x] 滑动命令在唯一出口限幅，越界初始速度加载期拒绝。
+- [x] `max_duration_s` 作为硬性终止时间，超时中止并报告；预算无隐藏余量。
+- [x] 区分 `run_checks_passed`（七项单轮）与 `k1_acceptance_passed`（九项完整），时间细化要求两个不同物理步长，所有结论由唯一的 `finalize_report` 收口。
 
 ## 已知边界
 

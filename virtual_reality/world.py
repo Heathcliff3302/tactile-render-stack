@@ -134,9 +134,27 @@ def trajectory_config_from_spec(spec) -> TrajectoryConfig:
     )
 
 
-def step_budget_from_spec(spec, *, margin_steps: int = 30) -> int:
+def step_budget_from_spec(spec) -> int:
+    """Control steps that fit inside the declared ``max_duration_s``.
+
+    ``max_duration_s`` is a hard simulation-time deadline, paired with
+    ``stop_policy = controller_done_or_timeout``: the run stops at the last
+    control step that ends within it, and the loop reports a timeout if the
+    controller has not finished. There is deliberately no extra margin, which
+    would let a run overrun the duration it declared. Any budget for writing
+    and validating artifacts is wall-clock work outside the simulation clock,
+    not additional physics steps.
+    """
     timing = spec.to_dict()["timing"]
-    return int(math.ceil(timing["max_duration_s"] / timing["control_dt_s"])) + margin_steps
+    budget = int(math.floor(
+        timing["max_duration_s"] / timing["control_dt_s"] + 1e-9
+    ))
+    if budget < 1:
+        raise ValueError(
+            f"max_duration_s={timing['max_duration_s']} is shorter than one "
+            f"control step of {timing['control_dt_s']} s"
+        )
+    return budget
 
 
 class KernelWorldStage:

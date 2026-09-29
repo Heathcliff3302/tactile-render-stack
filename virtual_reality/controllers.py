@@ -49,6 +49,12 @@ class TrajectoryConfig:
             raise ValueError("Retract needs a positive distance and speed")
         if self.max_slide_command_speed_mps < self.slide_speed_mps:
             raise ValueError("Slide command limit is below the slide target")
+        initial = self.initial_slide_command_speed_mps
+        if initial is not None and not 0.0 <= initial <= self.max_slide_command_speed_mps:
+            raise ValueError(
+                f"initial_slide_command_speed_mps={initial} is outside "
+                f"[0, {self.max_slide_command_speed_mps}]"
+            )
 
     @property
     def retract_time_s(self) -> float:
@@ -70,6 +76,7 @@ class TrajectoryStateMachine:
         self._slide_command_mps = 0.0
         self._slide_servo_started = False
         self._last_command = (0.0, 0.0, 0.0)
+        self._clamped_steps = 0
         self._transitions: list[dict] = []
 
     def reset(self) -> None:
@@ -80,6 +87,7 @@ class TrajectoryStateMachine:
         self._slide_command_mps = 0.0
         self._slide_servo_started = False
         self._last_command = (0.0, 0.0, 0.0)
+        self._clamped_steps = 0
         self._transitions = []
 
     @property
@@ -110,22 +118,35 @@ class TrajectoryStateMachine:
         if self.phase != LATERAL_SLIDE:
             self._slide_command_mps = 0.0
             self._slide_servo_started = False
+        # One clamp on the single exit, so no branch can emit an unbounded
+        # tangential command. Clamping only inside the feedback branch left
+        # the first slide frame free to command any declared initial speed.
+        command = self._clamp(command)
         self._last_command = command
         return command
 
+    def _clamp(self, command) -> tuple[float, float, float]:
+        limit = self.config.max_slide_command_speed_mps
+        tangential = min(max(command[0], -limit), limit)
+        if tangential != command[0]:
+            self._clamped_steps += 1
+        return (tangential, command[1], command[2])
+
     def _slide_velocity(self, feedback) -> float:
         config = self.config
+        limit = config.max_slide_command_speed_mps
         if config.tangent_speed_feedback_kp <= 0.0:
-            self._slide_command_mps = config.slide_speed_mps
+            self._slide_command_mps = min(config.slide_speed_mps, limit)
             return self._slide_command_mps
         if not self._slide_servo_started:
             initial = config.initial_slide_command_speed_mps
-            self._slide_command_mps = config.slide_speed_mps if initial is None else initial
+            raw = config.slide_speed_mps if initial is None else initial
+            self._slide_command_mps = min(max(raw, 0.0), limit)
             self._slide_servo_started = True
             return self._slide_command_mps
         error = config.slide_speed_mps - float(feedback.tangent_speed_mps)
         updated = self._slide_command_mps + config.tangent_speed_feedback_kp * error
-        self._slide_command_mps = min(max(updated, 0.0), config.max_slide_command_speed_mps)
+        self._slide_command_mps = min(max(updated, 0.0), limit)
         return self._slide_command_mps
 
     def observe(self, time_s: float, contact_present: bool) -> bool:
@@ -173,7 +194,9 @@ class TrajectoryStateMachine:
             "phase": self.phase,
             "phase_start_time_s": self.phase_start_time_s,
             "slide_command_mps": self._slide_command_mps,
+            "slide_command_limit_mps": self.config.max_slide_command_speed_mps,
             "slide_servo_active": self._slide_servo_started,
+            "clamped_command_steps": self._clamped_steps,
             "done": self.done,
             "abort_reason": self.abort_reason,
         }

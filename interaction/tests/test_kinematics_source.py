@@ -113,16 +113,22 @@ def test_required_observables_shrink_for_the_differenced_source():
 
 def test_differenced_run_passes_every_gate_and_replays(fd_run, k1_spec, tmp_path):
     from mechanics.k1_report import write_run
+    from scenarios.k1_variants import with_substeps
 
     data = copy.deepcopy(k1_spec.to_dict())
     data["sampling"]["kinematics_source"] = "finite_difference"
-    experiment = K1Experiment(ExperimentSpec.build(**data))
-    report = acceptance_report(fd_run)
-    assert report["all_passed"] is True
+    spec = ExperimentSpec.build(**data)
+    experiment = K1Experiment(spec)
+    refinement = [K1Experiment(with_substeps(spec, 2)).run()]
+    report = acceptance_report(fd_run, refinement_runs=refinement)
+    assert report["run_checks_passed"] is True
     assert report["kinematics_source"] == "finite_difference"
 
     write_run(fd_run, tmp_path, report, experiment.effective_runtime())
     assert evaluate_replay(tmp_path)["passed"] is True
+    # Only now is the verdict complete: refinement plus a written directory.
+    full = acceptance_report(fd_run, refinement_runs=refinement, run_directory=tmp_path)
+    assert full["k1_acceptance_passed"] is True
     manifest, frames = load_run(tmp_path)
     definitions = manifest.to_dict()["observables"]
     for name in KINEMATICS_DEPENDENT:

@@ -360,6 +360,10 @@ class FiveLayerLoop:
                 break
             if len(self.frames) >= self.max_steps:
                 self.state = "aborted"
-                self.abort_reason = f"step budget {self.max_steps} exhausted before controller finished"
+                self.abort_reason = (
+                    f"timeout: reached the declared simulation limit of "
+                    f"{self.max_steps} control steps "
+                    f"({frame.time_s:.6f} s) before the controller finished"
+                )
                 break
         return self.frames

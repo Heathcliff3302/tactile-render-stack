@@ -318,7 +318,10 @@ def write_index(run, manifest, report, directory, index_path) -> dict:
         "stage_table": list(run.stage_table),
         "segments": report["segments"],
         "gates": {gate["gate"]: gate["passed"] for gate in report["gates"]},
-        "all_passed": report["all_passed"],
+        "run_checks_passed": report["run_checks_passed"],
+        "k1_acceptance_complete": report["k1_acceptance_complete"],
+        "k1_acceptance_passed": report["k1_acceptance_passed"],
+        "missing_gates": report["missing_gates"],
         "artifacts": manifest["artifacts"],
     }
     index_path = Path(index_path)

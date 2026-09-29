@@ -13,7 +13,7 @@
   "spec_id": "k1_single_probe_cpu",
   "spec_sha256": "da9a776bca62b97bab95f60ad2ef7bdb3760425b468a5390796f92740fe3331e",
   "conditions_sha256": "1630ff1c88ed058077c5622330c5db000b019734f6341510d8625e206b73192d",
-  "manifest_sha256": "dae215b51d143712263c84933b6db39edd84fbb125c277fd40ff0add2eb8bfe8",
+  "manifest_sha256": "4bc52d03d8bd13173d119688e8bd4ce85392c4b583a173d31ae71e5c3307864c",
   "run_directory": "k1-single-probe-cpu",
   "frames": 472,
   "simulated_time_s": 7.866666666666666,
@@ -66,7 +66,10 @@
     "time_step_does_not_change_data_semantics": true,
     "interaction_state_replays_completely": true
   },
-  "all_passed": true,
+  "run_checks_passed": true,
+  "k1_acceptance_complete": true,
+  "k1_acceptance_passed": true,
+  "missing_gates": [],
   "artifacts": [
     {
       "path": "streams/probe0_surface.jsonl",
@@ -81,17 +84,17 @@
     {
       "path": "effective_runtime.json",
       "role": "summary",
-      "sha256": "f16e3ce98f782d748d48420f69295dc1409520f7a3f80a7af8eeee454307cfce"
+      "sha256": "9b9f08956930fb4fce30666f6dd8628f64cf36b12a5eb89d3d45d4f7e1dd386a"
     },
     {
       "path": "acceptance.json",
       "role": "summary",
-      "sha256": "5cfc6ebd7e2361db6154afb0e3ffc6071a578089cb6abd3102c3cc083ed22971"
+      "sha256": "102b56b5683d09546f91535f91b3a67ead8f38ae81a25481789466084ad2147e"
     },
     {
       "path": "environment.json",
       "role": "summary",
-      "sha256": "35321ea2982793ac63e59d9aa0f93be732b64f9b75e265f3849ef9bcbbdab1e5"
+      "sha256": "fa9af6a929f9346484809e6447c605a25dcbbc29f6c8116cc416b9bc4ac7e936"
     },
     {
       "path": "actual_commands.jsonl",

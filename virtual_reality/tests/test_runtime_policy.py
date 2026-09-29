@@ -80,10 +80,53 @@ def test_verdict_is_orthogonal_to_the_declared_status(k1_spec):
     ("static_friction", 0.5),
     ("dynamic_friction", 0.4),
     ("restitution", 0.3),
+    ("max_depenetration_velocity_mps", 0.5),
 ])
 def test_unimplemented_physics_or_solver_choices_are_rejected(k1_spec, name, value):
     with pytest.raises(UnsupportedRuntimeSetting):
         kernel_config_from_spec(with_runtime(k1_spec, name, value))
+
+
+def test_depenetration_limit_is_not_claimed_to_be_enforced(k1_spec):
+    """It was classified ``enforced`` while never binding.
+
+    With a penetrated contact the target normal velocity is zero, and the
+    minimum of zero and any non-negative limit is zero, so no value of the
+    field ever changed the impulse, the velocity or the geometric correction.
+    Only zero is accepted now, and the kernel guards it directly too.
+    """
+    from contact_kernel import SolverSpec
+
+    policy = RUNTIME_POLICY["max_depenetration_velocity_mps"]
+    assert policy.verdict == SINGLE_IMPLEMENTATION
+    assert policy.accepted == 0
+    assert "not implemented" in policy.note
+    SolverSpec(max_depenetration_velocity_mps=0.0)
+    with pytest.raises(NotImplementedError, match="Velocity-based depenetration"):
+        SolverSpec(max_depenetration_velocity_mps=0.5)
+
+
+def test_penetrated_contact_is_corrected_geometrically_not_by_impulse():
+    from contact_kernel import (
+        GridSpec, KernelConfig, ProbeSpec, RigidContactKernel,
+        SolverSpec, SurfaceSpec, TimingSpec,
+    )
+
+    probe_id, surface_id, dt = "/World/Fingertip", "/World/Cube", 1.0 / 60.0
+    kernel = RigidContactKernel(KernelConfig(
+        surface=SurfaceSpec(id=surface_id, center_world_m=(0, 0, 0.25), size_m=(0.5, 0.5, 0.5)),
+        probes=(ProbeSpec(id=probe_id, shape="sphere", mass_kg=0.05,
+                          initial_position_world_m=(0, 0, 0.61), radius_m=0.12),),
+        timing=TimingSpec(physics_dt_s=dt, control_dt_s=dt, output_dt_s=dt, substeps_per_control=1),
+        grid=GridSpec(rows=64, cols=64, cell_size_m=0.5 / 64, origin_local_m=(-0.25, -0.25, 0.25)),
+        solver=SolverSpec(),
+    ))
+    pair = kernel.step({probe_id: (0.0, 0.0, 0.0)}, phase="hold").pairs[
+        RigidContactKernel.pair_key(probe_id, surface_id)
+    ]
+    assert pair.position_correction_m == pytest.approx(0.01)
+    assert pair.normal_impulse_ns == 0.0
+    assert pair.probe_velocity_world_mps[2] == 0.0
 
 
 @pytest.mark.parametrize("name,value", [

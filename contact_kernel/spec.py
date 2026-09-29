@@ -166,6 +166,15 @@ class SolverSpec:
             raise NotImplementedError("Restitution arrives with the K4 material modes")
         if self.static_friction or self.dynamic_friction:
             raise NotImplementedError("Coulomb friction arrives after the K1 baseline")
+        if self.max_depenetration_velocity_mps:
+            # Penetration is removed by geometric projection, recorded apart
+            # from the contact impulse. A positive limit would mean impulse
+            # driven depenetration, which is a different strategy and is not
+            # implemented; accepting the value would make it look effective.
+            raise NotImplementedError(
+                "Velocity-based depenetration is not implemented; only "
+                "max_depenetration_velocity_mps = 0 is supported"
+            )
         if self.linear_damping_per_s < 0:
             raise ValueError("Linear damping must be non-negative")
 

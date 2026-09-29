@@ -52,6 +52,10 @@ PhysX 的持久接触缓存会复用和升级上一帧接触，接触点数量�
 
 这一选择决定了力的量级，必须明说：保持阶段的法向力等于 `m * contact_maintain_speed / output_dt = 0.05 * 0.02 * 60 = 0.06 N`，来源是"每控制步覆盖一次速度"注入的动量，不是探头自重。改变控制频率会改变这个力。该结论与设计文档中"`set_linear_velocity` 语义会影响力与时间步长的关系"一致，记录在 `effective_runtime.json` 的 `drive.force_scale_note`。
 
+**滑动命令在出口统一限幅。** 切向命令限幅原先只写在反馈分支里，于是滑动第一帧可以直接发出声明的任意初始速度——1.0 m/s 对 0.12 m/s 的上限，足以造成异常位移甚至滑出表面。现在越界的 `initial_slide_command_speed_mps` 在加载期拒绝，并且限幅放在 `command()` 的唯一出口，开环分支（`tangent_speed_feedback_kp = 0`）同样受约束。被限幅的步数记入 `controller_diagnostics.clamped_command_steps`。
+
+**`max_duration_s` 是硬性终止时间。** 步数预算原先在声明时长之外多加 30 步，于是 `max_duration_s = 7.4 s` 的运行仍能推进到 7.867 s 并被报成正常完成。现在预算恰好是落在声明时长内的控制步数（无额外余量），控制器未在此前结束时循环以 `timeout` 中止并报告到达的仿真时间。写产物和校验属于墙钟工作，在仿真时钟之外，不能折算成额外的物理步。
+
 **`released` 仍推进声明的释放时间。** 早期方案写的是"释放后禁止继续推进物理时间"。实现改为沿用 Step 6：`released` 段按 `release_time_s = 0.5 s` 继续出帧。没有这 30 帧，就没有"释放后接触力清零"的证据可看。这些帧的 `normal_force_n`、`normal_impulse_ns`、`contact_area_proxy_m2` 全为 `null`，`total_force_world_n` 为零向量。
 
 ## 区域解算
@@ -111,7 +115,14 @@ PhysX 的持久接触缓存会复用和升级上一帧接触，接触点数量�
 
 第 5 项的"语义"指段序列、接触与释放序列、帧数、Cell 与 Patch 身份、守恒等式。力的**量级**在一般情况下不声明与步长无关（它依赖驱动语义）；本次驱动语义下恰好也不变，因此报告实测离散而不是假定为零。
 
-第 6 项在清单写完之后验证并单独写入 `replay_check.json`，不作为清单产物：哈希绑定的文件不能包含关于自身哈希的已验证结论。
+最后两项需要单轮运行之外的输入，因此报告区分两种结论：
+
+- `run_checks_passed` —— 七项单轮门槛全部发出且通过。这是只传入一个运行的调用方能确立的全部，**不等于 K1 验收**。
+- `k1_acceptance_passed` —— `K1_GATE_ORDER` 九项全部发出且通过，需要两个不同物理步长的细化运行和一个已写出的运行目录。`all_passed` 即此结论。
+
+早先 `all_passed` 只要求七项单轮门槛存在，于是省略时间细化和磁盘回放时仍返回通过；把同一个运行当作自己的细化对照也能通过，而那根本没有改变时间步。现在 `evaluate_time_refinement` 要求至少两个不同的 `substeps_per_control`，且所有结论由唯一的 `finalize_report` 计算——调用方追加门槛后必须经它收口，不能自己写一遍 `all(gate["passed"] ...)`，那正是丢掉完整性要求的写法。
+
+第 9 项在清单写完之后验证：哈希绑定的文件不能包含关于自身哈希的已验证结论。因此 `acceptance.json` 刻意少一项并在 `replay_gate_location` 说明该项在 `replay_check.json`，后者携带完整的九项结论。
 
 ## 运行时字段裁决
 
@@ -119,13 +130,15 @@ PhysX 的持久接触缓存会复用和升级上一帧接触，接触点数量�
 
 | 裁决 | 含义 | 字段 |
 | --- | --- | --- |
-| `enforced` | 内核读取，不同取值改变行为 | `gravity_mps2`、`linear_damping_per_s`、`rest_offset_m`、`max_depenetration_velocity_mps`、`initial_linear_velocity_mps`、`sampling.kinematics_source` |
+| `enforced` | 内核读取，不同取值改变行为 | `gravity_mps2`、`linear_damping_per_s`、`rest_offset_m`、`initial_linear_velocity_mps`、`sampling.kinematics_source` |
 | `recorded_inert` | 内核不读取，且对本求解器结构确实是空操作；只接受那个惰性取值，并在加载期核验 | `position_iterations`(1)、`velocity_iterations`(1)、`sleep_enabled`(false)、`angular_damping_per_s`(0，转动已锁定)、`initial_orientation_wxyz`(单位四元数)、两个 combine_mode（因摩擦与恢复系数为零而无效） |
-| `single_implementation` | 字段指向真实的物理或数值选择，但只实现了一个取值，其余拒绝 | `static_friction`(0)、`dynamic_friction`(0)、`restitution`(0)、`contact_offset_m`(0)、`solver_type`、`ccd_mode` |
+| `single_implementation` | 字段指向真实的物理或数值选择，但只实现了一个取值，其余拒绝 | `static_friction`(0)、`dynamic_friction`(0)、`restitution`(0)、`contact_offset_m`(0)、`max_depenetration_velocity_mps`(0)、`solver_type`、`ccd_mode` |
 
 这套裁决与规格自带的 `status`（`source_explicit` / `unresolved` / `design_choice`）正交：后者说值从哪来，前者说内核是否据此行动。合并会丢信息。分类表写入 `effective_runtime.json` 的 `field_policy`，读者不必读求解器就能知道哪些字段真的在起作用。表中缺少任何一个已声明字段本身就是错误——未分类的设置等于没人检查过。
 
 `contact_offset_m` 之所以只接受 0：内核用的是逐子步的预测式间隙检测，不是 PhysX 那种投机接触余量；非零偏移会改变接触起始时刻，而这没有实现。
+
+`max_depenetration_velocity_mps` 曾被标为 `enforced`，但它从不生效：已穿透状态下目标法向速度为零，零与任何非负上限取最小值仍是零，因此改变该上限不会改变冲量、速度或几何修正量。既然当前策略是"几何投影修正、与冲量分离"，正确的最小修正是只接受零值并归类为单一支持配置；`SolverSpec` 也直接设卡，绕过规格直接构造内核同样会被拒。速度式去穿透属于另一种策略，需要时再实现并验证正值行为。
 
 ### 两种运动学来源都已实现
 

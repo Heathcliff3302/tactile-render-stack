@@ -15,11 +15,14 @@ from mechanics.k1_rigid import K1Experiment
 from tactile_contract import ExperimentSpec
 from validation.k1_acceptance import (
     ACCEPTANCE_KEY_GATES,
+    CROSS_RUN_GATE_ORDER,
     DEFERRED_ACCEPTANCE_KEYS,
     RUN_GATE_ORDER,
     acceptance_key_ledger,
     acceptance_report,
     evaluate_run,
+    evaluate_time_refinement,
+    finalize_report,
 )
 
 
@@ -60,16 +63,18 @@ def test_a_threshold_with_no_consumer_is_rejected_not_ignored(k1_spec):
 
 
 def test_run_that_aborts_partway_through_release_cannot_pass(k1_spec):
-    # Budget ends inside the released segment: contact appeared, held and was
-    # cleared, so every earlier gate is satisfied and only completeness fails.
-    broken = K1Experiment(mutate(k1_spec, lambda d: d["timing"].update(max_duration_s=7.0))).run()
+    # 7.5 s is 450 control steps, which lands inside the released segment: the
+    # probe made contact, held, slid and released, so every earlier gate is
+    # satisfied and only the completeness gate fails.
+    broken = K1Experiment(mutate(k1_spec, lambda d: d["timing"].update(max_duration_s=7.5))).run()
     report = acceptance_report(broken)
     completeness = gate_of(report, "run_completes_declared_program")
     assert broken.loop_state == "aborted"
-    assert "step budget" in broken.abort_reason
+    assert "timeout" in broken.abort_reason
     assert completeness["passed"] is False
     assert completeness["segment_order_complete"] is True
     assert gate_of(report, "release_clears_contact_force")["passed"] is True
+    assert report["run_checks_passed"] is False
     assert report["all_passed"] is False
 
 
@@ -101,16 +106,55 @@ def test_slide_settle_window_is_applied_not_merely_recorded(k1_spec):
     assert gate["slide_measured_frames"] == pytest.approx(gate["slide_frames"] / 2, abs=1)
 
 
-def test_missing_gate_cannot_be_read_as_a_pass(k1_run):
+def test_single_run_checks_do_not_amount_to_k1_acceptance(k1_run):
+    # A caller that supplies neither refinement runs nor a written directory
+    # can establish the single-run checks and nothing more.
     report = acceptance_report(k1_run)
-    assert report["missing_gates"] == []
-    # Dropping a gate from an otherwise passing report must flip the verdict.
-    trimmed = dict(report)
-    trimmed["gates"] = [g for g in report["gates"] if g["gate"] != "slide_speed_meets_threshold"]
-    names = [gate["gate"] for gate in trimmed["gates"]]
-    assert [name for name in RUN_GATE_ORDER if name not in names] == [
-        "slide_speed_meets_threshold"
-    ]
+    assert report["missing_run_gates"] == []
+    assert report["run_checks_passed"] is True
+    assert report["missing_gates"] == list(CROSS_RUN_GATE_ORDER)
+    assert report["k1_acceptance_complete"] is False
+    assert report["k1_acceptance_passed"] is False
+    assert report["all_passed"] is False
+
+
+def test_full_acceptance_needs_refinement_and_a_written_directory(
+    k1_run, k1_refinement_runs, k1_run_directory
+):
+    partial = acceptance_report(k1_run, refinement_runs=k1_refinement_runs)
+    assert partial["missing_gates"] == ["interaction_state_replays_completely"]
+    assert partial["k1_acceptance_passed"] is False
+
+    complete = acceptance_report(
+        k1_run, refinement_runs=k1_refinement_runs, run_directory=k1_run_directory
+    )
+    assert complete["missing_gates"] == []
+    assert complete["k1_acceptance_complete"] is True
+    assert complete["k1_acceptance_passed"] is True
+    assert complete["all_passed"] is True
+
+
+def test_time_refinement_requires_two_distinct_physics_step_counts(k1_run):
+    # Passing a run as its own refinement changes no time step and proves
+    # nothing, so it is refused rather than counted as a pass.
+    with pytest.raises(ValueError, match="distinct physics step counts"):
+        evaluate_time_refinement([k1_run, k1_run])
+
+
+def test_dropping_a_gate_flips_the_verdict_through_the_shared_finalizer(
+    k1_run, k1_refinement_runs, k1_run_directory
+):
+    report = acceptance_report(
+        k1_run, refinement_runs=k1_refinement_runs, run_directory=k1_run_directory
+    )
+    assert report["all_passed"] is True
+    trimmed = finalize_report({
+        **report,
+        "gates": [g for g in report["gates"] if g["gate"] != "slide_speed_meets_threshold"],
+    })
+    assert trimmed["missing_run_gates"] == ["slide_speed_meets_threshold"]
+    assert trimmed["run_checks_passed"] is False
+    assert trimmed["all_passed"] is False
 
 
 def test_healthy_run_passes_every_gate_including_the_new_ones(k1_run):

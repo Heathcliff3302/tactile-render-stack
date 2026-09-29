@@ -77,7 +77,6 @@ RUNTIME_POLICY: dict[str, FieldPolicy] = {
     "gravity_mps2": _enforced("integrated every substep; world Z component only"),
     "linear_damping_per_s": _enforced("scales velocity each substep"),
     "rest_offset_m": _enforced("shifts the contact plane in every gap query"),
-    "max_depenetration_velocity_mps": _enforced("caps the target normal velocity of the impulse"),
     "initial_linear_velocity_mps": _enforced("seeds the probe body state"),
 
     "position_iterations": _inert(1, "single analytic contact; the solver has no iteration loop"),
@@ -100,6 +99,12 @@ RUNTIME_POLICY: dict[str, FieldPolicy] = {
     ),
     "solver_type": _single(
         "single_sphere_plane_normal_impulse", "the only implemented dynamics mode"
+    ),
+    "max_depenetration_velocity_mps": _single(
+        0,
+        "penetration is removed by geometric projection and recorded apart "
+        "from the contact impulse; impulse-driven depenetration, which is what "
+        "a positive limit would govern, is not implemented",
     ),
     "ccd_mode": _single(
         "linear_sweep_in_drift",

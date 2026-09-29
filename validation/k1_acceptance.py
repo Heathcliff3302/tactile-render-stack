@@ -64,6 +64,16 @@ RUN_GATE_ORDER = (
     "force_matches_impulse_and_is_conserved",
 )
 
+#: Gates that need inputs beyond one run: refinement runs, and a written
+#: directory. Full K1 acceptance requires these too.
+CROSS_RUN_GATE_ORDER = (
+    "time_step_does_not_change_data_semantics",
+    "interaction_state_replays_completely",
+)
+
+#: Every gate full K1 acceptance requires.
+K1_GATE_ORDER = (*RUN_GATE_ORDER, *CROSS_RUN_GATE_ORDER)
+
 
 def acceptance_key_ledger(spec) -> dict:
     """Confirm every declared threshold is consumed or explicitly deferred."""
@@ -282,6 +292,13 @@ def evaluate_time_refinement(runs) -> dict:
     """
     if len(runs) < 2:
         raise ValueError("Time refinement needs at least two runs")
+    steps = {run.substeps_per_control for run in runs}
+    if len(steps) < 2:
+        # Comparing a run against itself proves nothing about the time step.
+        raise ValueError(
+            f"Time refinement needs at least two distinct physics step counts; "
+            f"got substeps_per_control={sorted(steps)}"
+        )
     ordered = sorted(runs, key=lambda run: run.substeps_per_control)
     reference = ordered[0]
     eligibility = [
@@ -362,23 +379,57 @@ def evaluate_replay(run_directory) -> dict:
     }
 
 
-def acceptance_report(run, *, refinement_runs=None, run_directory=None) -> dict:
-    """Assemble the full K1 acceptance report from the gates above.
+def finalize_report(report: dict) -> dict:
+    """Recompute every verdict from the gate list. The only place that does.
 
-    ``all_passed`` requires every emitted gate to pass *and* every single-run
-    gate to have been emitted. A missing gate cannot read as a pass.
+    Callers append gates that need inputs the report builder does not have,
+    notably the replay gate, which can only be checked after the manifest is
+    on disk. They must finalize through here rather than recomputing a verdict
+    by hand: a hand-rolled ``all(gate["passed"] ...)`` silently drops the
+    completeness requirement, which is the defect this function prevents.
+    """
+    gates = report["gates"]
+    names = [gate["gate"] for gate in gates]
+    passed = {gate["gate"]: gate["passed"] for gate in gates}
+    missing_run = [name for name in RUN_GATE_ORDER if name not in names]
+    missing_k1 = [name for name in K1_GATE_ORDER if name not in names]
+    report["gate_names"] = names
+    report["missing_run_gates"] = missing_run
+    report["missing_gates"] = missing_k1
+    report["run_checks_passed"] = not missing_run and all(
+        passed[name] for name in RUN_GATE_ORDER if name in passed
+    )
+    report["k1_acceptance_complete"] = not missing_k1
+    report["k1_acceptance_passed"] = not missing_k1 and all(passed.values())
+    report["all_passed"] = report["k1_acceptance_passed"]
+    report["verdict_scope"] = (
+        "k1_acceptance_passed requires every gate in K1_GATE_ORDER; "
+        "run_checks_passed covers only the single-run gates"
+    )
+    return report
+
+
+def acceptance_report(run, *, refinement_runs=None, run_directory=None) -> dict:
+    """Assemble an acceptance report, distinguishing partial from complete.
+
+    Two verdicts, because they answer different questions:
+
+    ``run_checks_passed``
+        Every single-run gate was emitted and passed. This is what a partial
+        call can establish, and it is *not* K1 acceptance.
+
+    ``k1_acceptance_passed``
+        Every gate in ``K1_GATE_ORDER`` was emitted and passed, which requires
+        refinement runs at two distinct physics step counts and a written run
+        directory. ``all_passed`` is this verdict, so a caller that omits
+        those inputs cannot read the result as a full pass.
     """
     report = evaluate_run(run)
     if refinement_runs:
         report["gates"].append(evaluate_time_refinement([run, *refinement_runs]))
     if run_directory is not None:
         report["gates"].append(evaluate_replay(run_directory))
-    names = [gate["gate"] for gate in report["gates"]]
-    missing = [name for name in RUN_GATE_ORDER if name not in names]
-    report["gate_names"] = names
-    report["missing_gates"] = missing
-    report["all_passed"] = not missing and all(gate["passed"] for gate in report["gates"])
-    return report
+    return finalize_report(report)
 
 
 def manifest_from_run(run, artifacts, observables) -> ExperimentManifest:

@@ -233,9 +233,10 @@ class RigidImpulseSolver:
         if contact:
             # Keep the next gap non-negative. A separated probe may still close
             # the remaining gap within this substep; a penetrating one is only
-            # stopped, because depenetration by impulse is disabled.
-            allowed_closing_speed = -query.gap_m / step_h if query.gap_m >= 0.0 else 0.0
-            target_normal_speed = min(allowed_closing_speed, self.config.solver.max_depenetration_velocity_mps)
+            # stopped, never pushed out, because impulse-driven depenetration
+            # is not implemented and ``max_depenetration_velocity_mps`` is
+            # pinned to zero by SolverSpec.
+            target_normal_speed = -query.gap_m / step_h if query.gap_m >= 0.0 else 0.0
             if free_normal_speed < target_normal_speed:
                 impulse = probe.mass_kg * (target_normal_speed - free_normal_speed)
                 velocity = (

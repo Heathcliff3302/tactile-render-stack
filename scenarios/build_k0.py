@@ -195,28 +195,101 @@ def build_spec(mode, grid):
     return data
 
 
+#: Explicit CPU-reference runtime. These are design choices, not claims about
+#: unresolved PhysX defaults. The evidence string is kept verbatim because the
+#: K1 specification hash is frozen and feeds every recorded conditions digest.
+CPU_REFERENCE_RUNTIME = {
+    "gravity_mps2": [0, 0, -9.81], "static_friction": 0, "dynamic_friction": 0, "restitution": 0,
+    "linear_damping_per_s": 0, "angular_damping_per_s": 0, "initial_linear_velocity_mps": [0, 0, 0],
+    "initial_orientation_wxyz": [1, 0, 0, 0], "contact_offset_m": 0, "rest_offset_m": 0,
+    "solver_type": "single_sphere_plane_normal_impulse", "position_iterations": 1, "velocity_iterations": 1,
+    "sleep_enabled": False, "ccd_mode": "linear_sweep_in_drift", "friction_combine_mode": "explicit_pair",
+    "restitution_combine_mode": "explicit_pair", "max_depenetration_velocity_mps": 0,
+}
+CPU_REFERENCE_EVIDENCE = "mechanics/designs/k1_single_probe_rigid.md"
+CPU_REFERENCE_DESCRIPTION = (
+    "Explicit CPU reference choices. No claim that unknown PhysX defaults have these values."
+)
+
+
+def to_cpu_reference(source, spec_id, description=CPU_REFERENCE_DESCRIPTION):
+    """Turn a source inventory into an explicit CPU reference specification."""
+    data = copy.deepcopy(source.to_dict())
+    data.update(spec_id=spec_id, kind="cpu_reference", backend_id="rigid_cpu_v1",
+                description=description)
+    data["runtime"] = {
+        key: {"value": value, "status": "design_choice", "evidence": CPU_REFERENCE_EVIDENCE}
+        for key, value in CPU_REFERENCE_RUNTIME.items()
+    }
+    data["grid"]["edge_policy"] = "reject_outside_top_face"
+    data["parameter_evidence"]["source_arguments"] = (
+        "Inherited source args for traceability. Structured fields define this CPU reference."
+    )
+    return data
+
+
+def force_cpu_reference(source):
+    """K2 force-mode CPU reference with a press limit that can reach its target.
+
+    Phase 1 regulated 1 N with a 0.25 m/s press limit because PhysX reports
+    contact impulse that also carries penetration recovery. This kernel removes
+    penetration by geometric projection and records it apart from the contact
+    impulse, so under ``F = mass * commanded_speed / output_dt`` a 0.25 m/s
+    limit reaches only 0.75 N and the declared 1 N target is unreachable.
+
+    The press limit is therefore derived from the target rather than copied
+    from Phase 1. The difference is a real difference between the two
+    backends, not a parameter to transplant.
+    """
+    from virtual_reality.drive_limits import DERIVED_HEADROOM_FACTOR, derive_press_limit_mps
+
+    data = to_cpu_reference(
+        source, "k2_force_cpu",
+        "Explicit CPU reference for force control. The press limit is derived "
+        "from the force target under this kernel's drive semantics, not copied "
+        "from Phase 1.",
+    )
+    force = data["controller"]["force"]
+    probe = data["probes"][0]
+    force["max_press_speed_mps"] = derive_press_limit_mps(
+        mass_kg=probe["mass_kg"],
+        target_force_n=force["target_force_n"],
+        output_dt_s=data["timing"]["output_dt_s"],
+    )
+    data["parameter_evidence"]["max_press_speed"] = (
+        f"Derived: {DERIVED_HEADROOM_FACTOR} x target_force_n under "
+        "F = mass * commanded_speed / output_dt. Phase 1's 0.25 m/s reaches "
+        "only 0.75 N on this kernel because penetration recovery is excluded "
+        "from the contact impulse here."
+    )
+    data["parameter_evidence"]["max_correct_speed"] = (
+        "Kept from Phase 1. An upward command separates the probe and clears "
+        "the contact force, so this limit does not bound the reachable force."
+    )
+    data["parameter_evidence"]["force_kp"] = (
+        "Inherited from Phase 1 and not yet tuned for this kernel. Under these "
+        "drive semantics the force responds to the command within one step "
+        "rather than accumulating, so K2 must verify the gains."
+    )
+    data["parameter_evidence"]["force_ki"] = data["parameter_evidence"]["force_kp"]
+    return data
+
+
 def main():
     write(ROOT / "tactile_contract/schemas/experiment-spec-v1.schema.json", make_schema())
     from tactile_contract.experiment_spec import ExperimentSpec
-    specs = []
+    specs = {}
     for mode, grid in [("trajectory",32),("trajectory",64),("trajectory",128),("force",64),("multi",64)]:
         spec = ExperimentSpec.build(**build_spec(mode,grid))
         write(ROOT / f"scenarios/k0/{spec.spec_id}.json", spec.to_dict())
-        specs.append(spec)
-    data = copy.deepcopy(specs[1].to_dict())
-    data.update(spec_id="k1_single_probe_cpu", kind="cpu_reference", backend_id="rigid_cpu_v1", description="Explicit CPU reference choices. No claim that unknown PhysX defaults have these values.")
-    values = {"gravity_mps2": [0,0,-9.81], "static_friction": 0, "dynamic_friction": 0, "restitution": 0,
-        "linear_damping_per_s": 0, "angular_damping_per_s": 0, "initial_linear_velocity_mps": [0,0,0],
-        "initial_orientation_wxyz": [1,0,0,0], "contact_offset_m": 0, "rest_offset_m": 0,
-        "solver_type": "single_sphere_plane_normal_impulse", "position_iterations": 1, "velocity_iterations": 1,
-        "sleep_enabled": False, "ccd_mode": "linear_sweep_in_drift", "friction_combine_mode": "explicit_pair",
-        "restitution_combine_mode": "explicit_pair", "max_depenetration_velocity_mps": 0}
-    data["runtime"] = {key: {"value": value, "status": "design_choice", "evidence": "mechanics/designs/k1_single_probe_rigid.md"} for key,value in values.items()}
-    data["grid"]["edge_policy"] = "reject_outside_top_face"
-    data["parameter_evidence"]["source_arguments"] = "Inherited source args for traceability. Structured fields define this CPU reference."
-    spec = ExperimentSpec.build(**data)
-    write(ROOT / "scenarios/k0/k1_single_probe_cpu.json", spec.to_dict())
-    print("Wrote 5 source inventories and 1 explicit CPU reference.")
+        specs[(mode, grid)] = spec
+    for spec_id, data in (
+        ("k1_single_probe_cpu", to_cpu_reference(specs[("trajectory", 64)], "k1_single_probe_cpu")),
+        ("k2_force_cpu", force_cpu_reference(specs[("force", 64)])),
+    ):
+        reference = ExperimentSpec.build(**data)
+        write(ROOT / f"scenarios/k0/{spec_id}.json", reference.to_dict())
+    print("Wrote 5 source inventories and 2 explicit CPU references.")
 
 
 if __name__ == "__main__":

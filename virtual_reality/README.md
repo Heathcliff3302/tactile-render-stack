@@ -9,6 +9,7 @@
 | `controllers.py` | Step 6 六段运动状态机，含滑动切向速度伺服 |
 | `world.py` | `ExperimentSpec` 到 `KernelConfig` 的适配器，以及层 1 stage |
 | `runtime_policy.py` | 运行时字段三分类裁决，不支持的取值在加载期拒绝 |
+| `drive_limits.py` | 驱动语义下的力可达性推导与加载期校验 |
 
 ## 字段裁决
 

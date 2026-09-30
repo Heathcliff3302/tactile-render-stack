@@ -6,6 +6,15 @@ from .controllers import (
     TrajectoryConfig,
     TrajectoryStateMachine,
 )
+from .drive_limits import (
+    DERIVED_HEADROOM_FACTOR,
+    UnreachableForceTarget,
+    assess_force_reachability,
+    command_speed_for_force_mps,
+    derive_press_limit_mps,
+    enforce_force_reachability,
+    frame_force_n,
+)
 from .runtime_policy import (
     ENFORCED,
     RECORDED_INERT,
@@ -24,6 +33,7 @@ from .world import (
 )
 
 __all__ = [
+    "DERIVED_HEADROOM_FACTOR",
     "ENFORCED",
     "KernelWorldStage",
     "MOTION_PHASES",
@@ -33,10 +43,16 @@ __all__ = [
     "SINGLE_IMPLEMENTATION",
     "TrajectoryConfig",
     "TrajectoryStateMachine",
+    "UnreachableForceTarget",
     "UnsupportedRuntimeSetting",
     "VERDICTS",
+    "assess_force_reachability",
     "classify_runtime",
+    "command_speed_for_force_mps",
+    "derive_press_limit_mps",
+    "enforce_force_reachability",
     "enforce_runtime",
+    "frame_force_n",
     "kernel_config_from_spec",
     "step_budget_from_spec",
     "trajectory_config_from_spec",

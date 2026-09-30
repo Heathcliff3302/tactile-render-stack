@@ -26,6 +26,7 @@ from contact_kernel import (
 from tactile_contract.pipeline import WorldFrame
 
 from .controllers import TrajectoryConfig, TrajectoryStateMachine
+from .drive_limits import enforce_force_reachability
 from .runtime_policy import enforce_runtime
 
 
@@ -46,6 +47,9 @@ def kernel_config_from_spec(spec, *, substeps_per_control: int | None = None) ->
     # Reject anything the kernel cannot honour before a run can produce
     # results that look valid. See virtual_reality/runtime_policy.py.
     enforce_runtime(spec)
+    # A force target must be reachable within its own declared press limit
+    # under the declared drive semantics. See virtual_reality/drive_limits.py.
+    enforce_force_reachability(spec)
     substeps = int(timing["substeps_per_control"] if substeps_per_control is None else substeps_per_control)
     physics_dt = timing["control_dt_s"] / substeps
     surface = SurfaceSpec(

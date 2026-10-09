@@ -30,16 +30,34 @@ from tactile_contract._common import digest
 from tactile_contract.pipeline import LOOP_SCHEMA_VERSION, FiveLayerLoop, LoopFrame
 from virtual_reality import (
     KernelWorldStage,
-    TrajectoryStateMachine,
+    assess_proportional_stability,
+    assess_regulator_authority,
     classify_runtime,
+    controller_from_spec,
     kernel_config_from_spec,
+    measure_force_ceiling,
     step_budget_from_spec,
-    trajectory_config_from_spec,
 )
 
+#: Structure version of the ``conditions`` block, not a milestone label. K2
+#: emits the same structure, so the identifier is unchanged; bumping it to
+#: read "k2" would alter every K1 conditions digest to rename a string.
 CONDITIONS_SCHEMA = "k1-conditions/v1"
 SCENARIO_ID = "k1_single_probe_rigid"
 SCENARIO_VERSION = "k1.0"
+#: Verbatim, because the K1 manifest hash is frozen and the committed run
+#: index records it. A reworded description is a changed manifest.
+SCENARIO_DESCRIPTION = (
+    "K1 single sphere probe against a fixed cube top face, rigid "
+    "impulse mode, CPU reference kernel"
+)
+K2_SCENARIO_ID = "k2_force_regulation"
+K2_SCENARIO_VERSION = "k2.0"
+K2_SCENARIO_DESCRIPTION = (
+    "K2 single sphere probe against a fixed cube top face, rigid impulse "
+    "mode, CPU reference kernel, PI normal-force regulation at the declared "
+    "target"
+)
 PLACEHOLDER_DIGEST = "0" * 64
 TRAJECTORY_COLUMNS = (
     "time_s",
@@ -60,6 +78,9 @@ class K1Run:
     spec: ExperimentSpec
     run_id: str
     scenario_id: str
+    scenario_version: str
+    scenario_description: str
+    controller_mode: str
     kernel_config: KernelConfig
     conditions: dict
     conditions_sha256: str
@@ -91,24 +112,44 @@ class K1Run:
         return self.conditions["timing"]["end_time_s"]
 
 
-class K1Experiment:
-    """Build and run the K1 five-layer loop from a validated ``ExperimentSpec``."""
+#: Controller modes with a segment machine and an acceptance story.
+SUPPORTED_MODES = ("trajectory", "force")
+
+
+class RigidProbeExperiment:
+    """Build and run the five-layer loop from a validated ``ExperimentSpec``.
+
+    One spherical probe against the fixed top face, in whichever controller
+    mode the specification declares. The assembly is mode independent: layer 1
+    selects its segment machine from the spec, and layers 2 to 5 read the same
+    kernel output either way. Only the controller differs, which is the point
+    — a force run that needed its own pipeline would not be comparable with a
+    trajectory run.
+    """
 
     def __init__(self, spec: ExperimentSpec, *, run_id: str = "k1-single-probe-cpu",
-                 scenario_id: str = SCENARIO_ID, substeps_per_control: int | None = None):
+                 scenario_id: str = SCENARIO_ID, scenario_version: str = SCENARIO_VERSION,
+                 scenario_description: str = SCENARIO_DESCRIPTION,
+                 substeps_per_control: int | None = None):
         data = spec.to_dict()
         if data["kind"] != "cpu_reference":
-            raise ValueError("K1 requires an explicit cpu_reference ExperimentSpec")
+            raise ValueError("This experiment requires an explicit cpu_reference ExperimentSpec")
         if len(data["probes"]) != 1 or data["probes"][0]["shape"] != "sphere":
-            raise ValueError("K1 requires exactly one spherical probe")
-        if data["controller"]["mode"] != "trajectory":
-            raise ValueError("K1 runs the trajectory controller; force mode arrives at K2")
+            raise ValueError("This experiment requires exactly one spherical probe")
+        mode = data["controller"]["mode"]
+        if mode not in SUPPORTED_MODES:
+            raise ValueError(
+                f"Controller mode {mode!r} is not implemented; implemented modes "
+                f"are {list(SUPPORTED_MODES)} and 'multi_trajectory' arrives at K3"
+            )
         self.spec = spec
         self.data = data
+        self.mode = mode
         self.run_id = run_id
         self.scenario_id = scenario_id
+        self.scenario_version = scenario_version
+        self.scenario_description = scenario_description
         self.kernel_config = kernel_config_from_spec(spec, substeps_per_control=substeps_per_control)
-        self.trajectory_config = trajectory_config_from_spec(spec)
         self.probe_id = data["probes"][0]["id"]
         self.surface_id = data["surface"]["id"]
         self.stream_id = data["streams"][0]["id"]
@@ -116,13 +157,13 @@ class K1Experiment:
         self.step_budget = step_budget_from_spec(spec)
 
     @classmethod
-    def from_json(cls, path: str | Path, **kwargs) -> "K1Experiment":
+    def from_json(cls, path: str | Path, **kwargs) -> "RigidProbeExperiment":
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         return cls(ExperimentSpec.from_dict(data), **kwargs)
 
     def _build_loop(self, conditions_sha256: str) -> FiveLayerLoop:
         kernel = RigidContactKernel(self.kernel_config)
-        world = KernelWorldStage(kernel, TrajectoryStateMachine(self.trajectory_config), probe_id=self.probe_id)
+        world = KernelWorldStage(kernel, controller_from_spec(self.spec), probe_id=self.probe_id)
         contact = KernelInteractionStage(
             run_id=self.run_id,
             scenario_id=self.scenario_id,
@@ -285,6 +326,9 @@ class K1Experiment:
             spec=self.spec,
             run_id=self.run_id,
             scenario_id=self.scenario_id,
+            scenario_version=self.scenario_version,
+            scenario_description=self.scenario_description,
+            controller_mode=self.mode,
             kernel_config=self.kernel_config,
             conditions=conditions,
             conditions_sha256=conditions_sha256,
@@ -366,8 +410,28 @@ class K1Experiment:
                 name for name, setting in self.data["runtime"].items() if setting["status"] == "unresolved"
             ],
             "field_policy": classify_runtime(self.spec),
+            "controller_mode": self.mode,
+            # None in trajectory mode. In force mode this records both
+            # ceilings on the regulator and which one binds, so a reader can
+            # see why the declared gains are what they are without re-deriving
+            # them. See virtual_reality/drive_limits.py.
+            "regulator_authority": assess_regulator_authority(self.spec),
+            # Convergence, not reach. The admissible proportional gain scales
+            # with output_dt, so this records the margin at the declared rate.
+            "proportional_stability": assess_proportional_stability(self.spec),
+            # The same question asked of the kernel instead of the ideal drive
+            # law. The two agree only when every term the law omits is zero,
+            # which is true for this CPU reference and is exactly why the
+            # agreement is worth recording rather than assuming.
+            "realised_drive_authority": measure_force_ceiling(
+                self.spec, kernel_config=self.kernel_config
+            ),
             "isaac_sim_parity": (
                 "behaviour and conservation gates only; no claim of numeric "
                 "equality with unresolved PhysX settings"
             ),
         }
+
+
+#: The original name, kept so K1 call sites and docs stay valid.
+K1Experiment = RigidProbeExperiment

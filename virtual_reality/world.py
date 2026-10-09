@@ -25,18 +25,34 @@ from contact_kernel import (
 )
 from tactile_contract.pipeline import WorldFrame
 
-from .controllers import TrajectoryConfig, TrajectoryStateMachine
-from .drive_limits import enforce_force_reachability
+from .controllers import (
+    ForceConfig,
+    ForceFeedbackStateMachine,
+    TrajectoryConfig,
+    TrajectoryStateMachine,
+)
+from .authority_probe import enforce_realised_drive_authority
+from .drive_limits import (
+    enforce_force_reachability,
+    enforce_proportional_stability,
+    enforce_regulator_authority,
+)
 from .runtime_policy import enforce_runtime
 
 
-def kernel_config_from_spec(spec, *, substeps_per_control: int | None = None) -> KernelConfig:
+def kernel_config_from_spec(
+    spec, *, substeps_per_control: int | None = None, probe_realised_drive: bool = True,
+) -> KernelConfig:
     """Map a validated ``ExperimentSpec`` onto kernel dataclasses.
 
     Only declared fields are read. ``controller.parameters
     .gravity_compensation_mps2`` is routed to the drive layer rather than into
     the velocity command, which is the one documented relocation relative to
     Step 6; see ``virtual_reality/controllers.py``.
+
+    ``probe_realised_drive=False`` skips the measured authority check. The
+    probe needs a built config to run the kernel, so it would otherwise
+    recurse through here; it is the only caller that passes this.
     """
     data = spec.to_dict()
     timing = data["timing"]
@@ -48,8 +64,17 @@ def kernel_config_from_spec(spec, *, substeps_per_control: int | None = None) ->
     # results that look valid. See virtual_reality/runtime_policy.py.
     enforce_runtime(spec)
     # A force target must be reachable within its own declared press limit
-    # under the declared drive semantics. See virtual_reality/drive_limits.py.
+    # under the declared drive semantics, and the regulator must still be able
+    # to command that speed once its error has gone to zero. Two separate
+    # ceilings; see virtual_reality/drive_limits.py. Both are closed-form
+    # checks on an idealised drive, which is why the measured probe below
+    # exists as well.
     enforce_force_reachability(spec)
+    enforce_regulator_authority(spec)
+    # And a third, which is about convergence rather than reach: the
+    # admissible proportional gain scales with output_dt, so the declared
+    # gain can be stable at one control rate and ring at another.
+    enforce_proportional_stability(spec)
     substeps = int(timing["substeps_per_control"] if substeps_per_control is None else substeps_per_control)
     physics_dt = timing["control_dt_s"] / substeps
     surface = SurfaceSpec(
@@ -71,7 +96,7 @@ def kernel_config_from_spec(spec, *, substeps_per_control: int | None = None) ->
         )
         for probe in data["probes"]
     )
-    return KernelConfig(
+    config = KernelConfig(
         surface=surface,
         probes=probes,
         timing=TimingSpec(
@@ -115,6 +140,14 @@ def kernel_config_from_spec(spec, *, substeps_per_control: int | None = None) ->
         ),
         backend_id=data["backend_id"],
     )
+    # The closed-form checks above describe an idealised drive, and they keep
+    # reporting a reachable target for specifications where the terms that law
+    # omits are not zero — linear damping being the clearest case. So the
+    # final check measures the real kernel instead of modelling it. It runs
+    # last because it needs the built config.
+    if probe_realised_drive:
+        enforce_realised_drive_authority(spec, kernel_config=config)
+    return config
 
 
 def trajectory_config_from_spec(spec) -> TrajectoryConfig:
@@ -135,6 +168,55 @@ def trajectory_config_from_spec(spec) -> TrajectoryConfig:
         tangent_speed_feedback_kp=parameters["tangent_speed_feedback_kp"],
         max_slide_command_speed_mps=parameters["max_slide_command_speed_mps"],
         initial_slide_command_speed_mps=parameters["initial_slide_command_speed_mps"],
+    )
+
+
+def force_config_from_spec(spec) -> ForceConfig:
+    """Map a force-mode ``ExperimentSpec`` onto the regulator configuration."""
+    data = spec.to_dict()
+    controller = data["controller"]
+    if controller["mode"] != "force":
+        raise ValueError(
+            f"force_config_from_spec needs controller.mode == 'force', "
+            f"got {controller['mode']!r}"
+        )
+    parameters = controller["parameters"]
+    force = controller["force"]
+    probe = data["probes"][0]
+    return ForceConfig(
+        pre_settle_time_s=parameters["pre_settle_time_s"],
+        approach_timeout_s=parameters["approach_timeout_s"],
+        regulate_timeout_s=force["regulate_timeout_s"],
+        hold_time_s=parameters["hold_time_s"],
+        slide_time_s=parameters["slide_time_s"],
+        release_time_s=parameters["release_time_s"],
+        approach_speed_mps=parameters["approach_speed_mps"],
+        slide_speed_mps=parameters["slide_speed_mps"],
+        retract_speed_mps=parameters["retract_speed_mps"],
+        retract_distance_m=probe["retract_distance_m"],
+        target_force_n=force["target_force_n"],
+        force_tolerance_n=force["force_tolerance_n"],
+        force_kp_m_per_ns=force["force_kp_m_per_ns"],
+        force_ki_m_per_ns2=force["force_ki_m_per_ns2"],
+        force_integral_limit_ns=force["force_integral_limit_ns"],
+        max_press_speed_mps=force["max_press_speed_mps"],
+        max_correct_speed_mps=force["max_correct_speed_mps"],
+        settle_frames=force["settle_frames"],
+        control_dt_s=data["timing"]["control_dt_s"],
+        max_slide_command_speed_mps=parameters["max_slide_command_speed_mps"],
+    )
+
+
+def controller_from_spec(spec):
+    """The segment machine the declared controller mode calls for."""
+    mode = spec.to_dict()["controller"]["mode"]
+    if mode == "trajectory":
+        return TrajectoryStateMachine(trajectory_config_from_spec(spec))
+    if mode == "force":
+        return ForceFeedbackStateMachine(force_config_from_spec(spec))
+    raise ValueError(
+        f"Controller mode {mode!r} is not implemented; 'multi_trajectory' "
+        f"arrives at K3"
     )
 
 
@@ -167,7 +249,7 @@ class KernelWorldStage:
     layer = 1
     stage_id = "declared_trajectory_world"
 
-    def __init__(self, kernel: RigidContactKernel, controller: TrajectoryStateMachine, *, probe_id: str):
+    def __init__(self, kernel: RigidContactKernel, controller, *, probe_id: str):
         self.kernel = kernel
         self.controller = controller
         self.probe_id = probe_id
@@ -202,7 +284,14 @@ class KernelWorldStage:
         command = self.controller.command(feedback)
         kernel_frame = self.kernel.step({self.probe_id: command}, phase=phase)
         pair = kernel_frame.pairs[self.pair_key]
-        self.controller.observe(kernel_frame.time_s, pair.contact_present)
+        # The sampled report, not the raw solver result: the kernel has already
+        # applied sampling.force_threshold_n, so this is the same observable
+        # layer 2 publishes and the acceptance gates score. A force regulator
+        # reading the unfiltered value would be chasing a force its own run
+        # record says was never reported.
+        self.controller.observe(
+            kernel_frame.time_s, pair.contact_present, pair.normal_force_n
+        )
         self._commands.append({
             "control_step": kernel_frame.control_step,
             "time_s": kernel_frame.time_s,

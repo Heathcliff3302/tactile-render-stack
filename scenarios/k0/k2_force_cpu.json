@@ -2,6 +2,7 @@
   "acceptance": {
     "contact_coverage_min": 0.95,
     "force_conservation_atol_n": 1e-05,
+    "force_pass_fraction_min": 0.9,
     "hold_tangent_speed_max_mps": 0.005,
     "patch_coverage_min": 0.9,
     "release_contact_frames_max": 0,
@@ -16,7 +17,7 @@
     "feedback_delay_steps": 1,
     "force": {
       "force_integral_limit_ns": 2.0,
-      "force_ki_m_per_ns2": 0.1,
+      "force_ki_m_per_ns2": 0.25,
       "force_kp_m_per_ns": 0.2,
       "force_tolerance_n": 0.05,
       "max_correct_speed_mps": 0.2,
@@ -84,7 +85,7 @@
     "units": "SI",
     "up_axis": "Z"
   },
-  "description": "Explicit CPU reference for force control. The press limit is derived from the force target under this kernel's drive semantics, not copied from Phase 1.",
+  "description": "Explicit CPU reference for force control. The press limit and the integral gain are both derived from the force target under this kernel's drive semantics, not copied from Phase 1.",
   "grid": {
     "area_method": "point_occupancy",
     "cell_area_m2": 6.103515625e-05,
@@ -110,9 +111,9 @@
     "direction_threshold": "scripts/step6_3.py:128 argparse default",
     "filter_alpha": "scripts/step6_3.py:129 argparse default",
     "force_change_threshold": "scripts/step6_3.py:124 argparse default",
-    "force_integral_limit": "scripts/step6_3.py:99 argparse default",
-    "force_ki": "Inherited from Phase 1 and not yet tuned for this kernel. Under these drive semantics the force responds to the command within one step rather than accumulating, so K2 must verify the gains.",
-    "force_kp": "Inherited from Phase 1 and not yet tuned for this kernel. Under these drive semantics the force responds to the command within one step rather than accumulating, so K2 must verify the gains.",
+    "force_integral_limit": "Kept from Phase 1. The integral authority was corrected through force_ki rather than this limit, so the anti-windup band is unchanged.",
+    "force_ki": "Derived: 1.5 x target_force_n x output_dt / (mass x force_integral_limit_ns). At steady state the proportional term vanishes with the error, so ki x force_integral_limit must supply the whole command speed. Phase 1's 0.1 supplies 0.2 m/s against the 0.3333 m/s a 1 N target needs on this kernel, settling at 0.75 N. That 0.75 N is the PI fixed point, which coincidentally equals the force Phase 1's 0.25 m/s press limit reaches; the two are unrelated ceilings.",
+    "force_kp": "Kept from Phase 1. The steady-state condition cancels every proportional term, so kp does not bound the reachable force; it shapes the transient and the ceiling a failing regulator settles on.",
     "force_threshold": "scripts/step6_3.py:123 argparse default",
     "force_tolerance": "scripts/run_step6_regression.py:160 force_command override",
     "geometry": "scripts/step6_3.py module constants/create_scene",
@@ -127,7 +128,7 @@
     "max_press_speed": "Derived: 1.5 x target_force_n under F = mass * commanded_speed / output_dt. Phase 1's 0.25 m/s reaches only 0.75 N on this kernel because penetration recovery is excluded from the contact impulse here.",
     "max_slide_command_speed": "scripts/step6_3.py:94 argparse default",
     "min_contact_coverage": "scripts/step6_3.py:117 argparse default",
-    "min_slide_force_in_tolerance": "scripts/run_step6_regression.py:160 force_command override",
+    "min_slide_force_in_tolerance": "Promoted into this CPU reference's acceptance block as force_pass_fraction_min, same value. Phase 1 declared it in source_arguments only, where no gate could read it. The Phase 1 inventory is unchanged.",
     "min_slide_speed_in_tolerance": "scripts/step6_3.py:85 argparse default",
     "pre_settle_time": "scripts/step6_3.py:119 argparse default",
     "print_every": "scripts/run_step6_regression.py:160 force_command override",
@@ -372,7 +373,7 @@
     }
   ],
   "spec_id": "k2_force_cpu",
-  "spec_sha256": "32a1cc785bb2ca1a65279898578da4dcb9b9e9fc37e3e9db39108caab55ad7ed",
+  "spec_sha256": "4879f5e0ad6fc3c483be839a9fab7a0a1597e62b9342e65ae895f258ad41088c",
   "streams": [
     {
       "body0": "/World/Fingertip",

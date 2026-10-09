@@ -36,7 +36,7 @@
 
 ## 后续任务
 
-- [ ] K2：力控状态机（`approach_force` / `regulate_force` / `lateral_slide_force`）、PI 增益针对本驱动语义重新验证、稀疏与密集输出。
+- [ ] K2：力控状态机（`approach_force` / `regulate_force` / `lateral_slide_force`）、PI 增益针对本驱动语义重新验证、稀疏与密集输出。详见 [`k2-implementation.md`](k2-implementation.md)。
 - [ ] K3：平底长方体探头、两探头、多物体对独立流、多 Patch、32/64/128 网格回归。
 - [ ] K4：Hertz 与弹性地基、压力场、模型接触面积、守恒栅格、材料单元独立状态。
 - [ ] K5：Unity 场景输入、执行器标定、误差与延迟报告；层 3 到层 5 记录升级为带版本 Schema。

@@ -97,10 +97,18 @@ def make_schema():
             "max_gap_frames": {"type": "integer", "minimum": 0}, "slide_threshold_mps": positive,
             "direction_threshold_m": positive, "filter_alpha": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
             "kinematics_source": text, "force_definition": {"const": "sum_contact_impulses_over_output_interval"}}),
+        # force_pass_fraction_min is declared only by force-mode specs, so it
+        # is optional here. The acceptance ledger in validation/ is what makes
+        # that conditional binding rather than merely permitted: it requires
+        # the key exactly when the controller is in force mode.
         "acceptance": obj({"contact_coverage_min": fraction, "slide_speed_tolerance_mps": positive,
             "slide_speed_pass_fraction_min": fraction, "hold_tangent_speed_max_mps": positive,
             "slide_settle_time_s": nonneg, "patch_coverage_min": fraction, "force_conservation_atol_n": positive,
-            "resolution_force_spread_max": fraction, "release_contact_frames_max": {"const": 0}}),
+            "resolution_force_spread_max": fraction, "release_contact_frames_max": {"const": 0},
+            "force_pass_fraction_min": fraction},
+            required=["contact_coverage_min", "slide_speed_tolerance_mps", "slide_speed_pass_fraction_min",
+                      "hold_tangent_speed_max_mps", "slide_settle_time_s", "patch_coverage_min",
+                      "force_conservation_atol_n", "resolution_force_spread_max", "release_contact_frames_max"]),
         "source_files": {"type": "array", "items": obj({"path": text, "sha256": sha}), "minItems": 1},
         "source_arguments": {"type": "object"}, "parameter_evidence": {"type": "object", "additionalProperties": text},
         "required_run_artifacts": array(text),
@@ -241,13 +249,15 @@ def force_cpu_reference(source):
     from Phase 1. The difference is a real difference between the two
     backends, not a parameter to transplant.
     """
-    from virtual_reality.drive_limits import DERIVED_HEADROOM_FACTOR, derive_press_limit_mps
+    from virtual_reality.drive_limits import (
+        DERIVED_HEADROOM_FACTOR, derive_force_ki, derive_press_limit_mps,
+    )
 
     data = to_cpu_reference(
         source, "k2_force_cpu",
-        "Explicit CPU reference for force control. The press limit is derived "
-        "from the force target under this kernel's drive semantics, not copied "
-        "from Phase 1.",
+        "Explicit CPU reference for force control. The press limit and the "
+        "integral gain are both derived from the force target under this "
+        "kernel's drive semantics, not copied from Phase 1.",
     )
     force = data["controller"]["force"]
     probe = data["probes"][0]
@@ -255,6 +265,17 @@ def force_cpu_reference(source):
         mass_kg=probe["mass_kg"],
         target_force_n=force["target_force_n"],
         output_dt_s=data["timing"]["output_dt_s"],
+    )
+    # The press clamp is not the only ceiling. At steady state the error, and
+    # with it the proportional term, has gone to zero, so the command speed
+    # comes from the integrator alone and is capped at ki * integral_limit.
+    # Phase 1's ki = 0.1 supplies 0.2 m/s against the 0.3333 m/s a 1 N target
+    # needs here, so the loop settles at 0.75 N and regulate_force times out.
+    force["force_ki_m_per_ns2"] = derive_force_ki(
+        mass_kg=probe["mass_kg"],
+        target_force_n=force["target_force_n"],
+        output_dt_s=data["timing"]["output_dt_s"],
+        integral_limit_ns=force["force_integral_limit_ns"],
     )
     data["parameter_evidence"]["max_press_speed"] = (
         f"Derived: {DERIVED_HEADROOM_FACTOR} x target_force_n under "
@@ -267,28 +288,101 @@ def force_cpu_reference(source):
         "the contact force, so this limit does not bound the reachable force."
     )
     data["parameter_evidence"]["force_kp"] = (
-        "Inherited from Phase 1 and not yet tuned for this kernel. Under these "
-        "drive semantics the force responds to the command within one step "
-        "rather than accumulating, so K2 must verify the gains."
+        "Kept from Phase 1. The steady-state condition cancels every "
+        "proportional term, so kp does not bound the reachable force; it "
+        "shapes the transient and the ceiling a failing regulator settles on."
     )
-    data["parameter_evidence"]["force_ki"] = data["parameter_evidence"]["force_kp"]
+    data["parameter_evidence"]["force_ki"] = (
+        f"Derived: {DERIVED_HEADROOM_FACTOR} x target_force_n x output_dt / "
+        "(mass x force_integral_limit_ns). At steady state the proportional "
+        "term vanishes with the error, so ki x force_integral_limit must "
+        "supply the whole command speed. Phase 1's 0.1 supplies 0.2 m/s "
+        "against the 0.3333 m/s a 1 N target needs on this kernel, settling "
+        "at 0.75 N. That 0.75 N is the PI fixed point, which coincidentally "
+        "equals the force Phase 1's 0.25 m/s press limit reaches; the two are "
+        "unrelated ceilings."
+    )
+    data["parameter_evidence"]["force_integral_limit"] = (
+        "Kept from Phase 1. The integral authority was corrected through "
+        "force_ki rather than this limit, so the anti-windup band is unchanged."
+    )
+    # Phase 1 declared min_slide_force_in_tolerance but left it in
+    # source_arguments, where the acceptance ledger cannot reach it, so no gate
+    # could ever compare against it. Promoting it here — in the derived CPU
+    # reference, not in the inventory — gives it a consumer while leaving the
+    # Phase 1 record untouched.
+    data["acceptance"]["force_pass_fraction_min"] = (
+        data["source_arguments"]["min_slide_force_in_tolerance"]
+    )
+    data["parameter_evidence"]["min_slide_force_in_tolerance"] = (
+        "Promoted into this CPU reference's acceptance block as "
+        "force_pass_fraction_min, same value. Phase 1 declared it in "
+        "source_arguments only, where no gate could read it. The Phase 1 "
+        "inventory is unchanged."
+    )
     return data
 
 
-def main():
+CPU_REFERENCES = (
+    ("k1_single_probe_cpu", "step6_trajectory_64", to_cpu_reference),
+    ("k2_force_cpu", "step6_force_64", lambda source, _: force_cpu_reference(source)),
+)
+
+
+def load_committed(spec_id):
+    """Read a committed source inventory instead of re-deriving it.
+
+    The inventories are extracted from Phase 1 source, so rebuilding them
+    needs that repository checked out alongside. The CPU references are
+    derived from the inventories alone, so they can be rebuilt without it.
+    """
+    from tactile_contract.experiment_spec import ExperimentSpec
+
+    path = ROOT / f"scenarios/k0/{spec_id}.json"
+    return ExperimentSpec.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
+
+def write_cpu_references(specs=None):
+    """Rebuild the two explicit CPU references. Returns their spec IDs."""
+    from tactile_contract.experiment_spec import ExperimentSpec
+
+    written = []
+    for spec_id, source_id, convert in CPU_REFERENCES:
+        source = specs[source_id] if specs and source_id in specs else load_committed(source_id)
+        reference = ExperimentSpec.build(**convert(source, spec_id))
+        write(ROOT / f"scenarios/k0/{spec_id}.json", reference.to_dict())
+        written.append(spec_id)
+    return written
+
+
+def main(argv=None):
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--cpu-references-only", action="store_true",
+        help="rebuild only the derived CPU references, which needs no Phase 1 checkout",
+    )
+    args = parser.parse_args(argv)
+
+    # The schema is derived from make_schema() alone, with no Phase 1 input, so
+    # it is written on both paths. Leaving it stale here would reject a derived
+    # reference that declares a field the schema has not learned about yet.
     write(ROOT / "tactile_contract/schemas/experiment-spec-v1.schema.json", make_schema())
+
+    if args.cpu_references_only:
+        written = write_cpu_references()
+        print(f"Rebuilt the schema and {len(written)} CPU references from the "
+              f"committed inventories: {', '.join(written)}.")
+        return
+
     from tactile_contract.experiment_spec import ExperimentSpec
     specs = {}
     for mode, grid in [("trajectory",32),("trajectory",64),("trajectory",128),("force",64),("multi",64)]:
         spec = ExperimentSpec.build(**build_spec(mode,grid))
         write(ROOT / f"scenarios/k0/{spec.spec_id}.json", spec.to_dict())
-        specs[(mode, grid)] = spec
-    for spec_id, data in (
-        ("k1_single_probe_cpu", to_cpu_reference(specs[("trajectory", 64)], "k1_single_probe_cpu")),
-        ("k2_force_cpu", force_cpu_reference(specs[("force", 64)])),
-    ):
-        reference = ExperimentSpec.build(**data)
-        write(ROOT / f"scenarios/k0/{spec_id}.json", reference.to_dict())
+        specs[spec.spec_id] = spec
+    write_cpu_references(specs)
     print("Wrote 5 source inventories and 2 explicit CPU references.")
 
 

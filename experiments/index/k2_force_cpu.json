@@ -1,0 +1,201 @@
+{
+  "schema": "k1-run-index/v1",
+  "run_id": "k2-force-cpu",
+  "scenario": {
+    "description": "K2 single sphere probe against a fixed cube top face, rigid impulse mode, CPU reference kernel, PI normal-force regulation at the declared target",
+    "id": "k2_force_regulation",
+    "version": "k2.0"
+  },
+  "backend": {
+    "id": "rigid_cpu_v1",
+    "version": "k1.0"
+  },
+  "spec_id": "k2_force_cpu",
+  "spec_sha256": "4879f5e0ad6fc3c483be839a9fab7a0a1597e62b9342e65ae895f258ad41088c",
+  "conditions_sha256": "bf72725e04fa7c58795feac83c5c2ddb871d585ea0da2f25f452fbd253690a75",
+  "manifest_sha256": "9dc228d4092bd22fdf438736a08c5a1c0c5d6688c099c858d5b9c35c49cd8983",
+  "run_directory": "k2-force-cpu",
+  "frames": 797,
+  "simulated_time_s": 13.283333333333333,
+  "substeps_per_control": 1,
+  "loop_state": "completed",
+  "abort_reason": "",
+  "stage_table": [
+    {
+      "layer": 1,
+      "stage_id": "declared_trajectory_world",
+      "status": "ok"
+    },
+    {
+      "layer": 2,
+      "stage_id": "rigid_cpu_kernel_adapter",
+      "status": "ok"
+    },
+    {
+      "layer": 3,
+      "stage_id": "rigid_constraint_baseline_v1",
+      "status": "ok"
+    },
+    {
+      "layer": 4,
+      "stage_id": "normal_force_target_v1",
+      "status": "ok"
+    },
+    {
+      "layer": 5,
+      "stage_id": "single_axis_ideal_first_order_v0",
+      "status": "ok"
+    }
+  ],
+  "segments": {
+    "pre_contact": 30,
+    "approach_force": 175,
+    "regulate_force": 386,
+    "lateral_slide_force": 60,
+    "retract": 116,
+    "released": 30
+  },
+  "gates": {
+    "run_completes_declared_program": true,
+    "single_probe_contact_appears": true,
+    "hold_contact_is_stable": true,
+    "contact_coverage_meets_threshold": true,
+    "slide_speed_meets_threshold": true,
+    "release_clears_contact_force": true,
+    "force_matches_impulse_and_is_conserved": true,
+    "force_target_is_reached_and_held": true,
+    "force_held_through_slide": true,
+    "regulator_stays_within_declared_authority": true,
+    "time_step_does_not_change_data_semantics": true,
+    "interaction_state_replays_completely": true
+  },
+  "run_checks_passed": true,
+  "controller_mode": "force",
+  "required_gates": [
+    "run_completes_declared_program",
+    "single_probe_contact_appears",
+    "hold_contact_is_stable",
+    "contact_coverage_meets_threshold",
+    "slide_speed_meets_threshold",
+    "release_clears_contact_force",
+    "force_matches_impulse_and_is_conserved",
+    "force_target_is_reached_and_held",
+    "force_held_through_slide",
+    "regulator_stays_within_declared_authority",
+    "time_step_does_not_change_data_semantics",
+    "interaction_state_replays_completely"
+  ],
+  "run_acceptance_complete": true,
+  "run_acceptance_passed": true,
+  "milestone": {
+    "schema": "milestone-status/v1",
+    "controller_mode": "force",
+    "milestone": "K2",
+    "milestone_complete": false,
+    "sub_milestone": "K2-A",
+    "sub_milestone_scope": "CPU reference backend, single scenario",
+    "deliverables": {
+      "cpu_reference_run": {
+        "delivered": true,
+        "note": "K2 force-control run passes every gate"
+      },
+      "curve_report": {
+        "delivered": false,
+        "note": "trajectory and force curve report is not written yet"
+      },
+      "dense_contact_field": {
+        "delivered": false,
+        "note": "dense_contact_field.npz and its replay check are not written yet"
+      },
+      "dynamic_authority_probe": {
+        "delivered": true,
+        "note": "measured on the kernel, covering damping and the realised drive"
+      },
+      "isaac_sim_parity": {
+        "delivered": false,
+        "note": "needs the Isaac Sim adapter and captured effective runtime settings"
+      }
+    },
+    "outstanding": [
+      "curve_report",
+      "dense_contact_field",
+      "isaac_sim_parity"
+    ],
+    "note": "a passing run establishes run_acceptance_passed on one backend and one scenario; milestone_complete additionally requires every deliverable above"
+  },
+  "k1_acceptance_complete": true,
+  "k1_acceptance_passed": true,
+  "missing_gates": [],
+  "artifacts": [
+    {
+      "path": "streams/probe0_surface.jsonl",
+      "role": "interaction_frames",
+      "sha256": "b0d9a8422d872da983a985670d9a6d4347e704084ac072bb3fd80926682e9c19"
+    },
+    {
+      "path": "stream_index.json",
+      "role": "summary",
+      "sha256": "94e5b94bdb08775d54aa88066511625726ed776ae79af554129749d053d16c07"
+    },
+    {
+      "path": "effective_runtime.json",
+      "role": "summary",
+      "sha256": "ebb130870918b85d4a4b61ad122371227a8826ba37fd475795961ab27c8ecc29"
+    },
+    {
+      "path": "acceptance.json",
+      "role": "summary",
+      "sha256": "108f4a393cf2f6419daafea9bef63206823c5b7aad5e4c613509b2d9e67c72dd"
+    },
+    {
+      "path": "environment.json",
+      "role": "summary",
+      "sha256": "759029e4870b1813835df3a2d85645b9cdbd78dcce3679f2f4b2e83ac8139b87"
+    },
+    {
+      "path": "actual_commands.jsonl",
+      "role": "trajectory",
+      "sha256": "7185fe8e473380c2d32bd91abac4724f92e296980ae30a23331867c83671095d"
+    },
+    {
+      "path": "points.csv",
+      "role": "raw_backend",
+      "sha256": "8a42c24e30d17906aacc8826d5f475194a08085acb2017eec835a79144f4964b"
+    },
+    {
+      "path": "cells.csv",
+      "role": "raw_backend",
+      "sha256": "f82f587a719fcda1f5e956c1b00063afbc0c9091bbe7bd2d35e785324c09b316"
+    },
+    {
+      "path": "patches.csv",
+      "role": "raw_backend",
+      "sha256": "09c487411c01f6a67523bf284647b09c0c4b17caac5b01356116296b4a0801c2"
+    },
+    {
+      "path": "episodes.csv",
+      "role": "raw_backend",
+      "sha256": "e2dd893fe53f2952c1a4c80b939c1db5aaf801a015b757341e0ab2c87142ddff"
+    },
+    {
+      "path": "kinematics.jsonl",
+      "role": "log",
+      "sha256": "b5ba648b09a3b7f480306a4b662bcc9fa32cd5e9774270a67866d4e0e99cbdee"
+    },
+    {
+      "path": "material_response.jsonl",
+      "role": "log",
+      "sha256": "3fccf24f65a67c8bc0f61778024fa234eb26d488e0cb3a6c8b7fa527491a741c"
+    },
+    {
+      "path": "tactile_target.jsonl",
+      "role": "log",
+      "sha256": "c2223310a14181f4c10f2d3bc6504bda0397912e78ddcc2239554b8bea991cd6"
+    },
+    {
+      "path": "actuator_io.jsonl",
+      "role": "log",
+      "sha256": "5cce6f045a75155f4e3e1b3fec0ca8bb879ae225d9e76a2349ea1ced0db20a1e"
+    }
+  ]
+}

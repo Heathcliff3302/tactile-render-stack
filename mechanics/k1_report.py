@@ -319,6 +319,16 @@ def write_index(run, manifest, report, directory, index_path) -> dict:
         "segments": report["segments"],
         "gates": {gate["gate"]: gate["passed"] for gate in report["gates"]},
         "run_checks_passed": report["run_checks_passed"],
+        # Two different questions, two different fields. "This run passed every
+        # gate" is not "the milestone is done": the milestone also needs the
+        # other backends and data products its plan declares, and no single run
+        # can speak to those. The K1 index keeps its original field names too,
+        # since they are already committed.
+        "controller_mode": report.get("controller_mode", "trajectory"),
+        "required_gates": report["required_gates"],
+        "run_acceptance_complete": report["run_acceptance_complete"],
+        "run_acceptance_passed": report["run_acceptance_passed"],
+        "milestone": report["milestone"],
         "k1_acceptance_complete": report["k1_acceptance_complete"],
         "k1_acceptance_passed": report["k1_acceptance_passed"],
         "missing_gates": report["missing_gates"],

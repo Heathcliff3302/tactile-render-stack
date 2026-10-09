@@ -100,9 +100,13 @@ def test_k2_reference_records_why_its_press_limit_differs_from_phase_1(k2_spec):
     evidence = k2_spec.to_dict()["parameter_evidence"]
     assert "Derived" in evidence["max_press_speed"]
     assert "0.75" in evidence["max_press_speed"]
-    # The inherited gains are flagged as untuned rather than presented as ready.
-    assert "not yet tuned" in evidence["force_kp"]
-    assert "not yet tuned" in evidence["force_ki"]
+    # The gains were flagged "not yet tuned" when K1 froze. K2 tuned them: ki
+    # is now derived from the same steady-state condition as the press limit,
+    # and kp is recorded as not bounding the reachable force at all. See
+    # test_regulator_authority.py for the derivation.
+    assert "Derived" in evidence["force_ki"]
+    assert "Kept from Phase 1" in evidence["force_kp"]
+    assert "does not bound the reachable force" in evidence["force_kp"]
 
 
 def test_an_unreachable_target_is_rejected_at_load(k2_spec):

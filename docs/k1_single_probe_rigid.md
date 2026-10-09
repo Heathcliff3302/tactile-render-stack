@@ -175,7 +175,9 @@ F = m * v_command / output_dt
 
 处理方式：
 
-- `scenarios/k0/step6_force_64.json` 是 Phase 1 源码的**溯源记录，不修改**。改动它等于伪造 Phase 1 声明过的值。
+- `scenarios/k0/step6_force_64.json` 是 Phase 1 源码的**溯源记录，不修改**。改动它等于伪造 Phase 1 声明过的值。K2 也没有修改它。
+
+  Phase 1 声明的 `min_slide_force_in_tolerance = 0.9` 只存在于 `source_arguments`，按阈值台账的规则没有任何门槛能读到它。K2 在**派生的 CPU 参考**里把同一个值以 `force_pass_fraction_min` 写入 `acceptance`，溯源记录本身保持原样——提升发生在派生侧，不在记录侧。
 - 新增 `scenarios/k0/k2_force_cpu.json`（`cpu_reference`），压入上限由目标力**推导**而非照搬：`1.5 × target × output_dt / mass = 0.5 m/s`，即留 50% 余量，最大可达 `1.5 N`。
 - `virtual_reality/drive_limits.py` 在加载期校验：任何声明力目标的规格，其目标加容差必须落在自身声明的压入上限之内，否则拒绝。恰好只够到目标的上限也会被拒——容差带顶端将无余量。
 

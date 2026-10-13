@@ -13,7 +13,7 @@
   "spec_id": "k1_single_probe_cpu",
   "spec_sha256": "da9a776bca62b97bab95f60ad2ef7bdb3760425b468a5390796f92740fe3331e",
   "conditions_sha256": "1630ff1c88ed058077c5622330c5db000b019734f6341510d8625e206b73192d",
-  "manifest_sha256": "1abbe4d9bddffd5d310d96f6f63cf28ebdb9a95b47b8493cae130efa453c7fca",
+  "manifest_sha256": "130d1b988635d44130525b9502ac96c3c9d7202608269e023967baae16913989",
   "run_directory": "k1-single-probe-cpu",
   "frames": 472,
   "simulated_time_s": 7.866666666666666,
@@ -64,9 +64,49 @@
     "release_clears_contact_force": true,
     "force_matches_impulse_and_is_conserved": true,
     "time_step_does_not_change_data_semantics": true,
+    "dense_field_matches_sparse_cells": true,
     "interaction_state_replays_completely": true
   },
   "run_checks_passed": true,
+  "controller_mode": "trajectory",
+  "required_gates": [
+    "run_completes_declared_program",
+    "single_probe_contact_appears",
+    "hold_contact_is_stable",
+    "contact_coverage_meets_threshold",
+    "slide_speed_meets_threshold",
+    "release_clears_contact_force",
+    "force_matches_impulse_and_is_conserved",
+    "time_step_does_not_change_data_semantics",
+    "dense_field_matches_sparse_cells",
+    "interaction_state_replays_completely"
+  ],
+  "run_acceptance_complete": true,
+  "run_acceptance_passed": true,
+  "milestone": {
+    "schema": "milestone-status/v1",
+    "controller_mode": "trajectory",
+    "milestone": "K1",
+    "milestone_complete": true,
+    "sub_milestone": "K1",
+    "sub_milestone_scope": "CPU reference backend, single scenario",
+    "deliverables": {
+      "cpu_reference_run": {
+        "delivered": true,
+        "note": "K1 single-probe trajectory run passes every gate"
+      },
+      "curve_report": {
+        "delivered": true,
+        "note": "contact_report.html written from the run's own arrays"
+      },
+      "dense_contact_field": {
+        "delivered": true,
+        "note": "dense_contact_field.npz written and checked against the sparse cells"
+      }
+    },
+    "outstanding": [],
+    "note": "a passing run establishes run_acceptance_passed on one backend and one scenario; milestone_complete additionally requires every deliverable above"
+  },
   "k1_acceptance_complete": true,
   "k1_acceptance_passed": true,
   "missing_gates": [],
@@ -84,17 +124,17 @@
     {
       "path": "effective_runtime.json",
       "role": "summary",
-      "sha256": "9b9f08956930fb4fce30666f6dd8628f64cf36b12a5eb89d3d45d4f7e1dd386a"
+      "sha256": "bac95fc6128f26888ad9651b69e6c46aaa77902211eac77df8f7b245cc9cfdeb"
     },
     {
       "path": "acceptance.json",
       "role": "summary",
-      "sha256": "102b56b5683d09546f91535f91b3a67ead8f38ae81a25481789466084ad2147e"
+      "sha256": "595340a2f0ca665dc0511c41406a2c6b2bb85e2197cbf95744a59e3be78a0f73"
     },
     {
       "path": "environment.json",
       "role": "summary",
-      "sha256": "7d4cd05eaa5751ace22101277e40b451b071adeb3c51523aa12c30b6aaa07ce3"
+      "sha256": "0c692a58c37645e29b0b547be8d2ba3b5afae5aaa05ac4e1391a3c093fbd8ae8"
     },
     {
       "path": "actual_commands.jsonl",
@@ -140,6 +180,26 @@
       "path": "actuator_io.jsonl",
       "role": "log",
       "sha256": "fde9b32a10cf83954df141fcd71490bccfa4aa688331c0fef682f92fd462cf40"
+    },
+    {
+      "path": "dense_contact_field.npz",
+      "role": "dense_contact_field",
+      "sha256": "32bec8185fe01fa221be32820b60e3b017f53d7ff892d1bc55c480a4c7b7f215"
+    },
+    {
+      "path": "dense_contact_field_metadata.json",
+      "role": "summary",
+      "sha256": "6aae17afa73495946a822a209b2f90253b99acf525142db109b3d575c55ff8f4"
+    },
+    {
+      "path": "contact_report.html",
+      "role": "report",
+      "sha256": "1b5ca674f853e9834e4beacedabf2602498b08566127afc0c81215309229aa5f"
+    },
+    {
+      "path": "curve_report_index.json",
+      "role": "summary",
+      "sha256": "b80bcb745e4159e99e176faef9f20da2641fc23050933b35ec4e853abff3b865"
     }
   ]
 }

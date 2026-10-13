@@ -29,6 +29,9 @@ passing while they violated both.
 from __future__ import annotations
 
 import math
+from pathlib import Path
+
+import numpy as np
 
 from tactile_contract import ExperimentManifest, comparison_gate, spec_comparison_gate, validate_run
 from tactile_contract.io import load_run
@@ -89,6 +92,7 @@ FORCE_RUN_GATE_ORDER = (
 #: directory. Full acceptance requires these too.
 CROSS_RUN_GATE_ORDER = (
     "time_step_does_not_change_data_semantics",
+    "dense_field_matches_sparse_cells",
     "interaction_state_replays_completely",
 )
 
@@ -104,27 +108,34 @@ K2_GATE_ORDER = (*RUN_GATE_ORDER, *FORCE_RUN_GATE_ORDER, *CROSS_RUN_GATE_ORDER)
 #: cannot establish a cross-backend milestone, and must not be read as one.
 #: Each entry is ``(delivered, what it needs)``.
 MILESTONE_DELIVERABLES: dict[str, dict[str, tuple[bool, str]]] = {
+    # K1 is the decoupled CPU reference, and its declared acceptance list never
+    # included cross-backend parity — that deliverable belongs to K2, which is
+    # where the Isaac Sim adapter is scoped. Listing it here made K1 report as
+    # K1-A while the README and docs declared it complete and frozen, which is
+    # a ledger contradicting the milestone it describes.
     "trajectory": {
         "cpu_reference_run": (True, "K1 single-probe trajectory run passes every gate"),
         "dense_contact_field": (
-            False, "Step 6.4 dense field is a K2 deliverable; K1 ships sparse products only"
+            True, "dense_contact_field.npz written and checked against the sparse cells"
         ),
-        "isaac_sim_parity": (
-            False, "needs the Isaac Sim adapter and captured effective runtime settings"
-        ),
+        "curve_report": (True, "contact_report.html written from the run's own arrays"),
     },
     "force": {
         "cpu_reference_run": (True, "K2 force-control run passes every gate"),
         "dense_contact_field": (
-            False, "dense_contact_field.npz and its replay check are not written yet"
-        ),
-        "isaac_sim_parity": (
-            False, "needs the Isaac Sim adapter and captured effective runtime settings"
+            True, "dense_contact_field.npz written, hash-bound and checked cell by "
+                  "cell against the sparse records"
         ),
         "dynamic_authority_probe": (
             True, "measured on the kernel, covering damping and the realised drive"
         ),
-        "curve_report": (False, "trajectory and force curve report is not written yet"),
+        "curve_report": (
+            True, "contact_report.html plots the realised trajectory, force and "
+                  "regulation band from the run's own arrays"
+        ),
+        "isaac_sim_parity": (
+            False, "needs the Isaac Sim adapter and captured effective runtime settings"
+        ),
     },
 }
 
@@ -656,6 +667,104 @@ def _patch_sequence(run):
     ]
 
 
+def evaluate_dense_field(run, run_directory) -> dict:
+    """Does the dense tensor carry exactly the sparse cells, and nothing else?
+
+    Densification is a storage change. If it is also, quietly, a numerical
+    change then every downstream consumer reads something the sparse evidence
+    does not say. So this reads the written file back and compares it cell by
+    cell against the run's own sparse records:
+
+    * the time axis is every control step, so ``pre_contact`` and ``released``
+      survive — a timeline taken from the cells alone would drop them, and
+      with them the evidence that force returns to zero after release;
+    * every sparse cell appears at its grid position with equal values;
+    * no dense cell exists that the sparse records do not have;
+    * the per-frame force total agrees with the sparse total.
+    """
+    from contact_kernel import RigidContactKernel
+    from tactile_contract.dense_field import CHANNELS, read_dense_field
+
+    path = Path(run_directory) / "dense_contact_field.npz"
+    if not path.is_file():
+        return _gate("dense_field_matches_sparse_cells", False, {
+            "dense_field_path": str(path),
+            "reason": "dense_contact_field.npz was not written",
+        })
+    data = read_dense_field(path)
+    field = data["field"]
+    config = run.kernel_config
+    key = RigidContactKernel.pair_key(config.probes[0].id, config.surface.id)
+    force_index = CHANNELS.index("normal_force_N")
+    mask_index = CHANNELS.index("contact_mask")
+    patch_index = CHANNELS.index("patch_id")
+
+    frame_count_matches = field.shape[0] == len(run.loop_frames)
+    max_force_error = 0.0
+    max_impulse_error = 0.0
+    mapped_failures = 0
+    extra_cells = 0
+    patch_mismatches = 0
+    for index, loop_frame in enumerate(run.loop_frames):
+        pair = loop_frame.world.kernel_frame.pairs[key]
+        sparse = {(cell.row, cell.col): cell for cell in pair.cells.values()}
+        dense_positions = {
+            (int(row), int(col))
+            for row, col in zip(*np.nonzero(field[index, :, :, mask_index]))
+        }
+        if dense_positions != set(sparse):
+            mapped_failures += len(set(sparse) - dense_positions)
+            extra_cells += len(dense_positions - set(sparse))
+        for (row, col), cell in sparse.items():
+            max_force_error = max(
+                max_force_error,
+                abs(float(field[index, row, col, force_index]) - cell.normal_force_n),
+            )
+            max_impulse_error = max(
+                max_impulse_error,
+                abs(float(field[index, row, col, CHANNELS.index("normal_impulse_Ns")])
+                    - cell.normal_impulse_ns),
+            )
+            if int(field[index, row, col, patch_index]) != cell.patch_id:
+                patch_mismatches += 1
+
+    # float32 storage, so the tolerance is the format's, not the solver's.
+    atol = 1e-6
+    declared_segments = {
+        phase: [str(value) for value in data["phase"]].count(phase)
+        for phase in phases_for_mode(run.controller_mode)
+    }
+    empty_segments_present = all(
+        declared_segments.get(phase, 0) > 0
+        for phase in (phases_for_mode(run.controller_mode)[0], "released")
+    )
+    passed = (
+        frame_count_matches and mapped_failures == 0 and extra_cells == 0
+        and patch_mismatches == 0 and max_force_error <= atol
+        and max_impulse_error <= atol and empty_segments_present
+    )
+    return _gate("dense_field_matches_sparse_cells", passed, {
+        "dense_field_path": str(path),
+        "shape": list(field.shape),
+        "frames": int(field.shape[0]),
+        "control_steps": len(run.loop_frames),
+        "frame_count_matches_control_steps": frame_count_matches,
+        "segments_in_dense_time_axis": declared_segments,
+        "no_contact_segments_preserved": empty_segments_present,
+        "unmapped_sparse_cells": mapped_failures,
+        "dense_cells_without_sparse_record": extra_cells,
+        "patch_id_mismatches": patch_mismatches,
+        "max_cell_force_error_n": max_force_error,
+        "max_cell_impulse_error_ns": max_impulse_error,
+        "tolerance_n": atol,
+        "tolerance_note": "float32 storage tolerance, not a solver tolerance",
+        "scope": (
+            "the dense tensor carries the same values as the sparse cells; "
+            "densification adds no spatial precision and no physical area"
+        ),
+    })
+
+
 def evaluate_replay(run_directory) -> dict:
     """Gate 6: manifest, hashes and frames reload and revalidate from disk."""
     manifest, frames = load_run(run_directory)
@@ -741,6 +850,7 @@ def acceptance_report(run, *, refinement_runs=None, run_directory=None) -> dict:
     if refinement_runs:
         report["gates"].append(evaluate_time_refinement([run, *refinement_runs]))
     if run_directory is not None:
+        report["gates"].append(evaluate_dense_field(run, run_directory))
         report["gates"].append(evaluate_replay(run_directory))
     return finalize_report(report)
 

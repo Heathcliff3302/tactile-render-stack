@@ -25,7 +25,12 @@ from mechanics.k1_rigid import (
 )
 from scenarios.k1_variants import time_refinement_specs
 from tactile_contract import ExperimentSpec
-from validation.k1_acceptance import acceptance_report, evaluate_replay, finalize_report
+from validation.k1_acceptance import (
+    acceptance_report,
+    evaluate_dense_field,
+    evaluate_replay,
+    finalize_report,
+)
 
 
 def main(argv=None) -> int:
@@ -69,13 +74,15 @@ def main(argv=None) -> int:
     # finished directory, so it cannot live inside the hash-bound manifest.
     report = acceptance_report(run, refinement_runs=refinement_runs)
     report["replay_gate_location"] = (
-        "interaction_state_replays_completely is verified after this file is "
-        "hashed; its result is in replay_check.json"
+        "interaction_state_replays_completely and dense_field_matches_sparse_cells "
+        "are verified after this file is hashed; their results are in "
+        "replay_check.json"
     )
     manifest = write_run(run, args.output, report, experiment.effective_runtime())
 
+    dense = evaluate_dense_field(run, args.output)
     replay = evaluate_replay(args.output)
-    final = finalize_report({**report, "gates": [*report["gates"], replay]})
+    final = finalize_report({**report, "gates": [*report["gates"], dense, replay]})
     (args.output / "replay_check.json").write_text(
         json.dumps({
             "schema": "k2-replay-check/v1",
@@ -85,6 +92,7 @@ def main(argv=None) -> int:
             "milestone": final["milestone"],
             "required_gates": final["required_gates"],
             "gate_names": final["gate_names"],
+            "dense_field_gate": dense,
             "replay_gate": replay,
         }, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

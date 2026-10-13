@@ -14,7 +14,12 @@ from mechanics.k1_report import missing_required_artifacts, write_index, write_r
 from mechanics.k1_rigid import K1Experiment
 from scenarios.k1_variants import time_refinement_specs
 from tactile_contract import ExperimentSpec
-from validation.k1_acceptance import acceptance_report, evaluate_replay, finalize_report
+from validation.k1_acceptance import (
+    acceptance_report,
+    evaluate_dense_field,
+    evaluate_replay,
+    finalize_report,
+)
 
 
 def main() -> int:
@@ -48,13 +53,15 @@ def main() -> int:
     # that is deliberately one gate short, and says so.
     report = acceptance_report(run, refinement_runs=refinement_runs)
     report["replay_gate_location"] = (
-        "interaction_state_replays_completely is verified after this file is "
-        "hashed; its result is in replay_check.json"
+        "interaction_state_replays_completely and dense_field_matches_sparse_cells "
+        "are verified after this file is hashed; their results are in "
+        "replay_check.json"
     )
     manifest = write_run(run, args.output, report, experiment.effective_runtime())
 
+    dense = evaluate_dense_field(run, args.output)
     replay = evaluate_replay(args.output)
-    final = finalize_report({**report, "gates": [*report["gates"], replay]})
+    final = finalize_report({**report, "gates": [*report["gates"], dense, replay]})
     (args.output / "replay_check.json").write_text(
         json.dumps({
             "schema": "k1-replay-check/v1",
@@ -62,6 +69,7 @@ def main() -> int:
             "k1_acceptance_complete": final["k1_acceptance_complete"],
             "k1_acceptance_passed": final["k1_acceptance_passed"],
             "gate_names": final["gate_names"],
+            "dense_field_gate": dense,
             "replay_gate": replay,
         }, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

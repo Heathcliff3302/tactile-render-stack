@@ -74,7 +74,7 @@
         "required": ["path", "role", "sha256"],
         "properties": {
           "path": {"type": "string", "minLength": 1},
-          "role": {"enum": ["interaction_frames", "raw_backend", "summary", "trajectory", "log"]},
+          "role": {"enum": ["interaction_frames", "raw_backend", "summary", "trajectory", "log", "dense_contact_field", "report"]},
           "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
         }
       }

@@ -20,7 +20,9 @@ from pathlib import Path
 
 from contact_kernel import RigidContactKernel
 from interaction import manifest_observables
+from mechanics.curve_report import write_curve_report
 from tactile_contract._common import canonical_json
+from tactile_contract.dense_field import write_dense_field
 from tactile_contract.io import write_frames
 from validation.k1_acceptance import manifest_from_run
 
@@ -38,6 +40,10 @@ ARTIFACT_ROLES = {
     "material_response.jsonl": "log",
     "tactile_target.jsonl": "log",
     "actuator_io.jsonl": "log",
+    "dense_contact_field.npz": "dense_contact_field",
+    "dense_contact_field_metadata.json": "summary",
+    "contact_report.html": "report",
+    "curve_report_index.json": "summary",
 }
 
 POINT_HEADER = [
@@ -273,6 +279,16 @@ def write_run(run, directory, acceptance, effective_runtime) -> dict:
         {"command": frame.command.to_dict(), "measurement": frame.measurement.to_dict()}
         for frame in run.loop_frames
     ])
+    # The same cells as cells.csv, re-laid out as a [T, H, W, C] tensor. The
+    # time axis is every control step, so pre_contact and released survive;
+    # a timeline taken from the cells alone would drop them. The companion
+    # metadata is JSON because a reader must be able to interpret the tensor
+    # without loading numpy or reading our source.
+    dense_meta = write_dense_field(root / "dense_contact_field.npz", run)
+    _write_json(root / "dense_contact_field_metadata.json", dense_meta)
+    _write_json(root / "curve_report_index.json",
+                write_curve_report(root / "contact_report.html", run,
+                                   acceptance, effective_runtime))
 
     artifacts = [{
         "path": stream_path,

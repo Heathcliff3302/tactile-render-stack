@@ -2,9 +2,9 @@
 
 ## 状态
 
-**K2-A：CPU 刚体力控参考链路完成。** 226 个测试全部通过（K1 基线 145 + K2 新增 81），`mechanics.run_k2` 十二项门槛全部通过。
+**K2-A：CPU 刚体力控参考链路完成，含稠密场与曲线报告。** 250 个测试全部通过，`mechanics.run_k2` 十三项门槛全部通过。
 
-**尚未标记为 K2 完成。** 还缺三项交付物：稠密触觉场输出、Isaac Sim 接触适配器与有效运行时参数采集、曲线报告。这三项由 `validation.milestone_status` 登记，运行报告里 `milestone_complete = false`、`sub_milestone = "K2-A"`、`outstanding` 列出它们——单次运行通过与里程碑完成是两个字段，不能互相读成对方。
+**尚未标记为 K2 完成。** 仅剩一项交付物：Isaac Sim 接触适配器与有效运行时参数采集。由 `validation.milestone_status` 登记，运行报告里 `milestone_complete = false`、`sub_milestone = "K2-A"`、`outstanding = ["isaac_sim_parity"]`——单次运行通过与里程碑完成是两个字段，不能互相读成对方。
 
 ## 力控参数的三道天花板
 
@@ -208,11 +208,63 @@ sub_milestone          K2-A    CPU 参考后端，单场景
 
 `run_k2` 的退出码只反映本次运行——那是这条命令执行的事——里程碑状态在摘要里单独报告，不与之混同。
 
+## 稠密触觉场
+
+复刻 Phase 1 Step 6.4 的 13 通道布局，通道名与顺序完全一致，既有消费者无需改动即可读取。K2 运行实测：
+
+```text
+dense_contact_field.npz        shape = (797, 64, 64, 13)   float32
+时间轴帧数 797 == 控制步数 797
+段分布     pre_contact 30 | approach_force 175 | regulate_force 386
+           lateral_slide_force 60 | retract 116 | released 30
+```
+
+**时间轴取自控制步，不取自 cell 记录。** 稀疏行只在有接触时存在，仅凭它建时间轴会悄悄丢掉 `pre_contact` 与 `released`——而"释放后接触力清零"的证据恰恰在那 30 帧里。门槛显式校验这两段存在。
+
+**与稀疏记录逐格比对**（`dense_field_matches_sparse_cells` 门槛）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 帧数 == 控制步数 | 通过 |
+| 无接触段保留 | 通过 |
+| 未映射的稀疏 cell | 0 |
+| 稀疏记录里没有的稠密 cell | 0 |
+| `patch_id` 不一致 | 0 |
+| 单格力最大误差 | `3.0e-8 N`（float32 存储精度，非求解器精度） |
+
+另以 `cells.csv` 独立复算：447 条稀疏行 ↔ 447 个稠密激活格，力之和 `369.430758` 对 `369.430756`，`released` 段力之和恰为 `0.0`。
+
+**一处对 Phase 1 的有意修正。** Phase 1 在曲率或方向无效时写 `0.0`，使"未定义"与"平坦"、"未移动"无法区分——正是本仓库在别处禁止的伪造零。13 通道布局为兼容保持不变，但有效性标志作为独立的 `[T,H,W]` 布尔数组 `curvature_valid` / `direction_valid` 随张量一同存储，消费者可以分辨两者。
+
+元数据写入 `dense_contact_field_metadata.json`：形状与轴顺序、每个通道的单位/语义/是否可求和（`additive` / `intensive` / `label` / `occupancy`）、网格尺寸与原点、时间步、段分布、`conditions_sha256`。读者不必读源码就能解释这个张量。
+
+`mapped_area_m2` 仍标注为占格代理，`physical_contact_area_m2` 为 `null`。**稠密化只改变存储布局，不提高空间精度，不把代理面积变成物理面积。**
+
+## 曲线报告
+
+`contact_report.html`，单文件、离线可开、无外部资源、无脚本。四张图：
+
+1. 探头高度与法向命令速度
+2. 法向力与声明的调节带（`target_force_n ± force_tolerance_n`）
+3. 切向速度
+4. 接触单元数与占格代理面积
+
+用内联 SVG 直接从运行数组生成，**不新增绘图依赖**——仓库依赖仍只有 `jsonschema` 与 `numpy`，报告不构成扩充依赖表的理由，尤其是一个必须能在无显示器机器上生成的报告。
+
+两处诚实性处理：
+
+- **数据缺口断线，不跨接。** 无接触帧没有力，跨过它连线会画出一段运行从未产生的直线，图会断言数据所否认的连续性。因此未定义值结束当前线段，下一个有定义值另起一段。层 5 的 `measured_force_n` 每帧都有定义，是真正连续的，不在此列。
+- **调节带画的是门槛评分依据的那条带**，取自 `controller.force` 的声明值，不是重绘的近似。
+
+报告底部重申边界：占格代理面积、`physical_contact_area_m2 = unavailable`、层 5 `modelled_not_measured`、与 Isaac Sim 之间只有行为与守恒门槛。
+
+## 契约变更
+
+`ExperimentManifest v1` 的 `artifacts[].role` 枚举新增 `dense_contact_field` 与 `report` 两个取值。这是**向后兼容的放宽**：既有清单仍然有效，没有字段改变含义，因此版本号不变。按新 schema 写出的清单用旧 schema 校验会被拒绝，这一点记在此处，不靠读者推断。
+
 ## 未做
 
-- [ ] W6 稀疏与密集输出（`dense_contact_field.npz`，13 通道，时间轴取自 control stream 以保留 `pre_contact` 与 `released` 空帧），复刻 Step 6.4。需纳入 `required_run_artifacts`、manifest 哈希与 replay 校验，元数据写入网格尺寸、单位、通道语义、时间步。
-- [ ] Isaac Sim 适配器与有效运行时参数采集。采集完成之前与 Isaac Sim 之间仍只有行为与守恒门槛，没有数值等价结论。
-- [ ] K2 的曲线化验收报告。
+- [ ] Isaac Sim 适配器与有效运行时参数采集。采集完成之前与 Isaac Sim 之间仍只有行为与守恒门槛，没有数值等价结论。**这是 K2 唯一剩余的交付物。**
 - [ ] 清理工作区并提交冻结版本。
 
 ## 不做

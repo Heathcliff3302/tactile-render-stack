@@ -122,7 +122,15 @@ def test_full_acceptance_needs_refinement_and_a_written_directory(
     k1_run, k1_refinement_runs, k1_run_directory
 ):
     partial = acceptance_report(k1_run, refinement_runs=k1_refinement_runs)
-    assert partial["missing_gates"] == ["interaction_state_replays_completely"]
+    # Refinement runs satisfy the time-step gate; everything that reads the
+    # written directory is still outstanding. Derived from the declared order
+    # so a new directory-dependent gate is accounted for rather than ignored.
+    directory_gates = [
+        name for name in CROSS_RUN_GATE_ORDER
+        if name != "time_step_does_not_change_data_semantics"
+    ]
+    assert partial["missing_gates"] == directory_gates
+    assert "interaction_state_replays_completely" in directory_gates
     assert partial["k1_acceptance_passed"] is False
 
     complete = acceptance_report(

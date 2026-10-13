@@ -9,6 +9,7 @@ from mechanics.k1_rigid import K1Experiment
 from scenarios.k1_variants import with_substeps
 from tactile_contract.io import load_run
 from validation.k1_acceptance import (
+    CROSS_RUN_GATE_ORDER,
     RUN_GATE_ORDER,
     acceptance_report,
     evaluate_replay,
@@ -16,12 +17,10 @@ from validation.k1_acceptance import (
     evaluate_time_refinement,
 )
 
-#: Full gate order: the single-run gates, then the two that need extra inputs.
-GATE_ORDER = (
-    *RUN_GATE_ORDER,
-    "time_step_does_not_change_data_semantics",
-    "interaction_state_replays_completely",
-)
+#: Full gate order: the single-run gates, then the ones that need extra
+#: inputs. Derived from the module's own orders rather than restated, so a new
+#: cross-run gate does not silently leave this test checking a shorter list.
+GATE_ORDER = (*RUN_GATE_ORDER, *CROSS_RUN_GATE_ORDER)
 
 
 def test_run_level_gates_pass_and_are_reported_in_order(k1_run):
@@ -89,7 +88,12 @@ def test_run_directory_replays_through_the_manifest_and_hashes(k1_run_directory,
     assert gate["passed"] is True
     assert gate["frames"] == len(k1_run.frames)
     assert gate["run_id"] == k1_run.run_id
-    assert gate["artifacts_verified"] == 14
+    # Every artifact the manifest binds, whatever the set currently is: the
+    # count is read from the manifest rather than restated, so adding an
+    # artifact cannot quietly leave fewer files verified than written.
+    manifest, _ = load_run(k1_run_directory)
+    assert gate["artifacts_verified"] == len(manifest.to_dict()["artifacts"])
+    assert gate["artifacts_verified"] >= 14
 
 
 def test_reloaded_frames_are_identical_to_the_frames_in_memory(k1_run_directory, k1_run):

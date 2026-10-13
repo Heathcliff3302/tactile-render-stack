@@ -198,7 +198,7 @@ def build_spec(mode, grid):
         "acceptance": {"contact_coverage_min": args["min_contact_coverage"], "slide_speed_tolerance_mps": args["slide_speed_tolerance"], "slide_speed_pass_fraction_min": args.get("min_slide_coverage", args.get("min_slide_speed_in_tolerance")), "hold_tangent_speed_max_mps": args.get("max_hold_tangent_speed", .005), "slide_settle_time_s": args.get("slide_settle_time", 0), "patch_coverage_min": .90, "force_conservation_atol_n": 1e-5, "resolution_force_spread_max": .10, "release_contact_frames_max": 0},
         "source_files": [{"path": file, "sha256": hashlib.sha256((BASE/file).read_bytes()).hexdigest()} for file in files],
         "source_arguments": args, "parameter_evidence": evidence | {"geometry": f"{path} module constants/create_scene", "runtime": "unresolved means engine defaults or constructor defaults not captured", "max_duration_s": "Phase 2 watchdog budget, not a historical run duration"},
-        "required_run_artifacts": ["effective_runtime.json", "actual_commands.jsonl", "stream_index.json", "streams/*.jsonl", "points.csv", "cells.csv", "patches.csv", "episodes.csv", "kinematics.jsonl", "acceptance.json", "environment.json"],
+        "required_run_artifacts": ["effective_runtime.json", "actual_commands.jsonl", "stream_index.json", "streams/*.jsonl", "points.csv", "cells.csv", "patches.csv", "episodes.csv", "kinematics.jsonl", "acceptance.json", "environment.json", "dense_contact_field.npz", "dense_contact_field_metadata.json", "contact_report.html"],
     }
     return data
 

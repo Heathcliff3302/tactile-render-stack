@@ -13,7 +13,7 @@
   "spec_id": "k2_force_cpu",
   "spec_sha256": "4879f5e0ad6fc3c483be839a9fab7a0a1597e62b9342e65ae895f258ad41088c",
   "conditions_sha256": "bf72725e04fa7c58795feac83c5c2ddb871d585ea0da2f25f452fbd253690a75",
-  "manifest_sha256": "9dc228d4092bd22fdf438736a08c5a1c0c5d6688c099c858d5b9c35c49cd8983",
+  "manifest_sha256": "ddf4dfeb604ccd2cb9ab1c7496a26f6f7485661d761ef486c56d078317dc0d5f",
   "run_directory": "k2-force-cpu",
   "frames": 797,
   "simulated_time_s": 13.283333333333333,
@@ -67,6 +67,7 @@
     "force_held_through_slide": true,
     "regulator_stays_within_declared_authority": true,
     "time_step_does_not_change_data_semantics": true,
+    "dense_field_matches_sparse_cells": true,
     "interaction_state_replays_completely": true
   },
   "run_checks_passed": true,
@@ -83,6 +84,7 @@
     "force_held_through_slide",
     "regulator_stays_within_declared_authority",
     "time_step_does_not_change_data_semantics",
+    "dense_field_matches_sparse_cells",
     "interaction_state_replays_completely"
   ],
   "run_acceptance_complete": true,
@@ -100,12 +102,12 @@
         "note": "K2 force-control run passes every gate"
       },
       "curve_report": {
-        "delivered": false,
-        "note": "trajectory and force curve report is not written yet"
+        "delivered": true,
+        "note": "contact_report.html plots the realised trajectory, force and regulation band from the run's own arrays"
       },
       "dense_contact_field": {
-        "delivered": false,
-        "note": "dense_contact_field.npz and its replay check are not written yet"
+        "delivered": true,
+        "note": "dense_contact_field.npz written, hash-bound and checked cell by cell against the sparse records"
       },
       "dynamic_authority_probe": {
         "delivered": true,
@@ -117,8 +119,6 @@
       }
     },
     "outstanding": [
-      "curve_report",
-      "dense_contact_field",
       "isaac_sim_parity"
     ],
     "note": "a passing run establishes run_acceptance_passed on one backend and one scenario; milestone_complete additionally requires every deliverable above"
@@ -145,12 +145,12 @@
     {
       "path": "acceptance.json",
       "role": "summary",
-      "sha256": "108f4a393cf2f6419daafea9bef63206823c5b7aad5e4c613509b2d9e67c72dd"
+      "sha256": "613e44e88b5285b47b2c88769f6c722ec371965714515bc4ccfbdb9f9a973009"
     },
     {
       "path": "environment.json",
       "role": "summary",
-      "sha256": "759029e4870b1813835df3a2d85645b9cdbd78dcce3679f2f4b2e83ac8139b87"
+      "sha256": "94f89cb808d7ed4da3334692e5795bacd0e4585e0139c54c46e96925c7f47802"
     },
     {
       "path": "actual_commands.jsonl",
@@ -196,6 +196,26 @@
       "path": "actuator_io.jsonl",
       "role": "log",
       "sha256": "5cce6f045a75155f4e3e1b3fec0ca8bb879ae225d9e76a2349ea1ced0db20a1e"
+    },
+    {
+      "path": "dense_contact_field.npz",
+      "role": "dense_contact_field",
+      "sha256": "694e13afc72cc22f7f25aa97d2a483ea48ecb2d8282ccbe94885081fa79c6009"
+    },
+    {
+      "path": "dense_contact_field_metadata.json",
+      "role": "summary",
+      "sha256": "ccf261e1e9ae7bd832ecfb036cd0e0babd7c18a3300c9ef1c1fad473f2a79528"
+    },
+    {
+      "path": "contact_report.html",
+      "role": "report",
+      "sha256": "6d520c3ec16e5127094b452c9ae24f3e4df2725896f7286b3841d0bc1a0ce494"
+    },
+    {
+      "path": "curve_report_index.json",
+      "role": "summary",
+      "sha256": "a01f448c978493b40111d86881e58ad2a042ec8a4d50edf7d555867bc73597b7"
     }
   ]
 }

@@ -51,7 +51,7 @@ K1（单探头刚体模式）已完成并冻结：一个球形探头压向固定
          共 472 帧 / 7.87 s 仿真时间
 ```
 
-九项验收门槛全部通过：
+十项验收门槛全部通过：
 
 | 门槛 | 结果 |
 | --- | --- |
@@ -63,7 +63,8 @@ K1（单探头刚体模式）已完成并冻结：一个球形探头压向固定
 | 释放后接触力清零 | 释放段接触帧 0，最大总力 `0.0 N` |
 | 总力与冲量一致 | 冲量换算、法向加切向、Point→Cell→Patch 误差均为 `0.0 N`（门槛 `1e-5 N`） |
 | 时间步变化不改变数据语义 | 子步 1/2/4 的段序列、接触序列、Cell 与 Patch 序列完全相同 |
-| `InteractionState` 完整回放 | 14 个产物哈希校验 + 472 帧契约校验 |
+| 稠密场与稀疏 Cell 一致 | 帧数等于控制步数，无接触段保留；未映射 cell 0，多余 cell 0，单格力误差 `3e-8 N` |
+| `InteractionState` 完整回放 | 18 个产物哈希校验 + 472 帧契约校验 |
 
 ## 快速开始
 
@@ -73,7 +74,7 @@ python -m venv .venv
 
 .venv/Scripts/python.exe -m mechanics.run_k1          # 跑 K1，写出完整运行目录
 .venv/Scripts/python.exe -m mechanics.run_k2          # 跑 K2 力控
-.venv/Scripts/python.exe -m pytest -q                 # 226 个测试
+.venv/Scripts/python.exe -m pytest -q                 # 250 个测试
 ```
 
 不需要 Isaac Sim，不需要 GPU。`contact_kernel/` 只依赖标准库，其余部分只依赖 `jsonschema` 和 `numpy`。
@@ -123,7 +124,7 @@ docs/                设计、决策、复现说明
 | --- | --- |
 | K0 基线与实验契约 | 已完成：参数清单、原始证据索引、CPU 参考规格、比较 profile |
 | K1 单探头刚体模式 | **已完成**：解耦内核、五层闭环、九项门槛、字段裁决，见 [`docs/k1_single_probe_rigid.md`](docs/k1_single_probe_rigid.md) |
-| K2 Step 6 控制与回归 | **K2-A 已完成**：CPU 刚体力控参考链路，PI 法向力调节、1 N 目标、十二项门槛，见 [`docs/plans/k2-implementation.md`](docs/plans/k2-implementation.md)。K2 未完成，尚缺稠密触觉场、Isaac Sim 适配器与有效参数采集、曲线报告 |
+| K2 Step 6 控制与回归 | **K2-A 已完成**：CPU 刚体力控参考链路，PI 法向力调节、1 N 目标、13 通道稠密触觉场、曲线报告、十三项门槛，见 [`docs/plans/k2-implementation.md`](docs/plans/k2-implementation.md)。K2 未完成，尚缺 Isaac Sim 适配器与有效参数采集 |
 | K3 多探头与分辨率 | 盒形探头、多物体对独立流、多 Patch、32/64/128 网格 |
 | K4 模型接触区域 | Hertz、弹性地基、压力场、守恒栅格、材料单元独立状态 |
 | K5 Unity 与最小五层闭环 | 场景输入、执行器标定、误差与延迟报告 |

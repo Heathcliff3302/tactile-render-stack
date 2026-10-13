@@ -34,7 +34,7 @@
 | 接触数据来源 | 状态 |
 | --- | --- |
 | 自研 CPU 接触内核 `contact_kernel/` | **已实现**，仅依赖标准库 |
-| Isaac Sim | 契约、实验规格和比较闸门已就位；适配器在 K2 |
+| Isaac Sim | 契约、实验规格和比较闸门已就位；适配器是 K2 唯一剩余交付物，需要一台装有 Isaac Sim 的机器 |
 | Unity 场景输入 | K5（Unity 内置物理也是 PhysX，接入时保留后端标识，避免出现第二个求解器） |
 | 真实传感器实测 | Phase 3 |
 
@@ -123,7 +123,7 @@ docs/                设计、决策、复现说明
 | 里程碑 | 状态 |
 | --- | --- |
 | K0 基线与实验契约 | 已完成：参数清单、原始证据索引、CPU 参考规格、比较 profile |
-| K1 单探头刚体模式 | **已完成**：解耦内核、五层闭环、九项门槛、字段裁决，见 [`docs/k1_single_probe_rigid.md`](docs/k1_single_probe_rigid.md) |
+| K1 单探头刚体模式 | **已完成**：解耦内核、五层闭环、十项门槛、字段裁决，见 [`docs/k1_single_probe_rigid.md`](docs/k1_single_probe_rigid.md) |
 | K2 Step 6 控制与回归 | **K2-A 已完成**：CPU 刚体力控参考链路，PI 法向力调节、1 N 目标、13 通道稠密触觉场、曲线报告、十三项门槛，见 [`docs/plans/k2-implementation.md`](docs/plans/k2-implementation.md)。K2 未完成，尚缺 Isaac Sim 适配器与有效参数采集 |
 | K3 多探头与分辨率 | 盒形探头、多物体对独立流、多 Patch、32/64/128 网格 |
 | K4 模型接触区域 | Hertz、弹性地基、压力场、守恒栅格、材料单元独立状态 |

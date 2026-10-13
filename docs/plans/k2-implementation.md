@@ -160,7 +160,8 @@ loop_state completed | 797 帧 | 13.283 s 仿真时间
 | 滑动段保持力目标 | 通过。60 帧 = `1.0 s`，达到声明滑动时长；带内 60 帧，占比 `1.0` |
 | 调节器在声明权限内 | 通过。最大压入命令 `0.327 m/s`（上限 `0.5`）；受评段仅 `regulate_force` 与 `lateral_slide_force`，共 446 步 |
 | 时间步变化不改变数据语义 | 通过，子步 1/2/4 |
-| `InteractionState` 完整回放 | 通过，14 个产物哈希校验 |
+| 稠密场与稀疏 Cell 一致 | 通过，逐格比对（详见下节） |
+| `InteractionState` 完整回放 | 通过，18 个产物哈希校验 |
 
 峰值报告法向力 `0.981 N`。受评段内最大垂向命令为 `-0.082 m/s`——始终为负，调节器全程未发出向上命令，因此不存在分离后重新接触。
 
@@ -181,12 +182,16 @@ final force  0.750000 N
 
 ## K1 索引的变化
 
-`experiments/index/k1_single_probe_cpu.json` 中三个产物哈希变化，物理结果未变：
+`experiments/index/k1_single_probe_cpu.json` 相对 K1 冻结版本有两类变化，**物理结果未变**。
 
-- `effective_runtime.json`、`acceptance.json`：新增 `controller_mode`、`required_gates`、`acceptance_complete` / `acceptance_passed` 等与模式无关的字段。
+新增四个产物（14 → 18）：`dense_contact_field.npz`、`dense_contact_field_metadata.json`、`contact_report.html`、`curve_report_index.json`。K1 与 K2 走同一条装配路径，所以稠密场和曲线报告对两者同时生效。门槛随之 9 → 10（新增 `dense_field_matches_sparse_cells`）。
+
+三个既有产物哈希变化：
+
+- `effective_runtime.json`、`acceptance.json`：新增 `controller_mode`、`required_gates`、`run_acceptance_passed` / `milestone` 等与模式无关的字段。
 - `environment.json`：按设计记录主机信息与墙钟时间，每次运行都不同。
 
-`spec_sha256`、`conditions_sha256`、帧数、段长度、九项门槛结果全部不变。
+`spec_sha256`、`conditions_sha256`、帧数（472）、段长度（`30/175/60/60/117/30`）全部不变，十项门槛全部通过。
 
 ## PI 稳定性扫描
 

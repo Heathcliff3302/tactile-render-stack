@@ -19,6 +19,11 @@ from .geometry import SurfaceGrid
 POINT_OCCUPANCY = "point_occupancy"
 SWEPT_PATH = "swept_path"
 GEOMETRIC_FOOTPRINT = "geometric_footprint"
+#: How a flat-bottom box spreads one frame's normal load over its footprint
+#: cells. Uniform area weighting is a DECLARED PROXY, not a pressure field: a
+#: rigid flat punch has an edge pressure singularity, so this understates the
+#: rim and overstates the centre. It is named so a consumer can refuse it.
+BOX_UNIFORM_PROXY = "box_uniform_area_weighted_proxy"
 
 Vec2 = tuple[float, float]
 Vec3 = tuple[float, float, float]

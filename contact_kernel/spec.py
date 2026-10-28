@@ -36,7 +36,7 @@ def _vec3(values) -> Vec3:
 
 @dataclass(frozen=True)
 class ProbeSpec:
-    """One controlled probe body. K1 implements the sphere case only."""
+    """One controlled probe body: a sphere, or a rotation-locked flat-bottom box."""
 
     id: str
     shape: str
@@ -60,16 +60,31 @@ class ProbeSpec:
             if not self.radius_m or self.radius_m <= 0:
                 raise ValueError(f"{self.id}: a sphere probe needs a positive radius")
         elif self.shape == BOX:
-            raise NotImplementedError(
-                f"{self.id}: flat-bottom box probes arrive with the K3 multi-probe solver"
-            )
+            if self.size_m is None or min(self.size_m) <= 0:
+                raise ValueError(f"{self.id}: a box probe needs positive size_m extents")
+            if self.radius_m is not None:
+                raise ValueError(f"{self.id}: a box probe must not declare radius_m")
         else:
             raise ValueError(f"{self.id}: unsupported probe shape {self.shape!r}")
 
     @property
     def support_offset_m(self) -> float:
-        """Distance from the body origin to the lowest support point."""
+        """Distance from the body origin to the lowest support point.
+
+        For a sphere this is the radius. For a box it is half the Z extent:
+        rotation is locked to ``locked``, so the bottom face stays parallel to
+        the top face and every support point on it shares one separation.
+        """
+        if self.shape == BOX:
+            return float(self.size_m[2]) / 2.0
         return float(self.radius_m)
+
+    @property
+    def footprint_half_extent_m(self) -> tuple[float, float]:
+        """Half extents of the bottom face in XY. Spheres have no flat bottom."""
+        if self.shape != BOX:
+            raise ValueError(f"{self.id}: only a box probe has a flat bottom face")
+        return float(self.size_m[0]) / 2.0, float(self.size_m[1]) / 2.0
 
 
 @dataclass(frozen=True)

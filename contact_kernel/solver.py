@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .geometry import TopFaceGeometry, dot
-from .spec import KernelConfig, Vec3
+from .spec import BOX, KernelConfig, Vec3
 
 
 @dataclass
@@ -193,8 +193,7 @@ class RigidImpulseSolver:
         for probe in self.config.probes:
             state = self.states[probe.id]
             record = accumulator[probe.id]
-            query = self.geometry.query_sphere(state.position_world_m, probe.radius_m,
-                                               surface_offset_m=self.config.solver.rest_offset_m)
+            query = self._query(probe, state.position_world_m)
             impulse = record["impulse"]
             solutions.append(ProbeSolution(
                 probe_id=probe.id,
@@ -217,6 +216,24 @@ class RigidImpulseSolver:
             ))
         return tuple(solutions)
 
+    def _query(self, probe, position):
+        """Dispatch to the shape's own query. Sphere keeps the frozen path.
+
+        P2.2 adds the box case as a separate branch rather than by widening
+        ``query_sphere``: the single-probe gates are frozen, so the sphere call
+        must stay argument-for-argument what it was.
+        """
+        if probe.shape == BOX:
+            return self.geometry.query_box(
+                position,
+                probe.footprint_half_extent_m,
+                probe.support_offset_m,
+                surface_offset_m=self.config.solver.rest_offset_m,
+            )
+        return self.geometry.query_sphere(
+            position, probe.radius_m, surface_offset_m=self.config.solver.rest_offset_m
+        )
+
     def _advance_substep(self, probe, step_h, acceleration, damping_factor, index, substep_time) -> SubstepTrace:
         state = self.states[probe.id]
         velocity = (
@@ -224,8 +241,7 @@ class RigidImpulseSolver:
             (state.linear_velocity_mps[1] + acceleration[1] * step_h) * damping_factor,
             (state.linear_velocity_mps[2] + acceleration[2] * step_h) * damping_factor,
         )
-        query = self.geometry.query_sphere(state.position_world_m, probe.radius_m,
-                                          surface_offset_m=self.config.solver.rest_offset_m)
+        query = self._query(probe, state.position_world_m)
         normal = query.normal_world
         free_normal_speed = dot(velocity, normal)
         impulse = 0.0
@@ -249,16 +265,14 @@ class RigidImpulseSolver:
             state.position_world_m[1] + velocity[1] * step_h,
             state.position_world_m[2] + velocity[2] * step_h,
         )
-        after = self.geometry.query_sphere(position, probe.radius_m,
-                                          surface_offset_m=self.config.solver.rest_offset_m)
+        after = self._query(probe, position)
         correction = 0.0
         if after.inside_face and after.gap_m < 0.0:
             # Numerical penetration is removed geometrically and reported on its
             # own, so it never appears as extra contact impulse or force.
             correction = -after.gap_m
             position = (position[0], position[1], position[2] + correction)
-            after = self.geometry.query_sphere(position, probe.radius_m,
-                                              surface_offset_m=self.config.solver.rest_offset_m)
+            after = self._query(probe, position)
         state.position_world_m = position
         state.linear_velocity_mps = velocity
         return SubstepTrace(

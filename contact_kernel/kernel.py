@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from .geometry import SurfaceGrid, TopFaceGeometry, dot
 from .spec import (
+    BOX,
     KERNEL_SCHEMA_VERSION,
     KINEMATICS_FINITE_DIFFERENCE,
     KINEMATICS_METHOD,
@@ -25,6 +26,7 @@ from .spec import (
     Vec3,
 )
 from .tracking import (
+    BOX_UNIFORM_PROXY,
     GEOMETRIC_FOOTPRINT,
     POINT_OCCUPANCY,
     SWEPT_PATH,
@@ -53,7 +55,7 @@ class AreaLayers:
     point_occupancy_m2: float
     swept_path_m2: float
     geometric_footprint_m2: float
-    footprint_radius_m: float
+    footprint_radius_m: float | None
     swept_cell_count: int
     model_footprint_m2: float | None = None
     note: str = (
@@ -326,7 +328,71 @@ class RigidContactKernel:
             reason = solution.rejected_reason
 
         points: list[ContactPoint] = []
-        if reported:
+
+        # P2.2.1 box footprint: one contact point per covered cell, each
+        # carrying an area-weighted share of the frame's normal load.
+        #
+        # The share is UNIFORM over the footprint, and that is a declared
+        # proxy, not physics. A rigid flat punch on an elastic half-space has
+        # an edge pressure singularity (p(r) ~ 1/sqrt(1 - r^2/a^2)); uniform
+        # loading understates the rim and overstates the centre. In the rigid
+        # impulse mode the kernel only knows the total impulse, so no pressure
+        # distribution is available to be right — which is exactly why the
+        # method name must travel with the number. Downstream readers get
+        # ``box_uniform_area_weighted_proxy`` and can refuse it.
+        #
+        # Conservation is exact regardless: the shares are normalised to the
+        # coverage sum, so the point forces add back to the solver's force.
+        box_shares: list[tuple[tuple[int, int], float, Vec3]] = []
+        if reported and probe.shape == BOX:
+            coverage = self.grid.rect_coverage(point_local, probe.footprint_half_extent_m)
+            total_alpha = sum(coverage.values())
+            if total_alpha > 0.0:
+                for (row, col), alpha in sorted(coverage.items()):
+                    centre = self.grid.cell_center_local(row, col)
+                    box_shares.append((
+                        (row, col),
+                        alpha / total_alpha,
+                        (centre[0] + self.config.surface.center_world_m[0],
+                         centre[1] + self.config.surface.center_world_m[1],
+                         point_world[2]),
+                    ))
+
+        if reported and box_shares:
+            curvature_1, curvature_2, curvature_valid = self.geometry.curvature(point_local)
+            for (row, col), share, cell_world in box_shares:
+                cell_local = self.grid.cell_center_local(row, col)
+                points.append(ContactPoint(
+                    time_s=time_s,
+                    control_step=step_index,
+                    phase=phase,
+                    body0=solution.probe_id,
+                    body1=solution.surface_id,
+                    point_world_m=cell_world,
+                    point_local_m=(cell_local[0], cell_local[1], point_local[2]),
+                    normal_world=normal,
+                    normal_local=normal,
+                    tangent_u_world=tangent_basis[0],
+                    tangent_v_world=tangent_basis[1],
+                    gap_m=solution.gap_m,
+                    penetration_m=solution.penetration_m,
+                    normal_impulse_ns=solution.normal_impulse_ns * share,
+                    normal_force_n=solution.normal_force_n * share,
+                    tangent_force_world_n=(0.0, 0.0, 0.0),
+                    grid_row=row,
+                    grid_col=col,
+                    curvature_1_per_m=curvature_1,
+                    curvature_2_per_m=curvature_2,
+                    curvature_valid=curvature_valid,
+                    normal_relative_velocity_mps=rigid_normal_speed,
+                    tangent_velocity_world_mps=rigid_tangent_velocity,
+                    tangent_speed_mps=rigid_tangent_speed,
+                    tangent_u_speed_mps=dot(rigid_tangent_velocity, tangent_basis[0]),
+                    tangent_v_speed_mps=dot(rigid_tangent_velocity, tangent_basis[1]),
+                    kinematics_source=KINEMATICS_METHOD[self.config.sampling.kinematics_source],
+                    rigid_body_tangent_speed_mps=rigid_tangent_speed,
+                ))
+        elif reported:
             curvature_1, curvature_2, curvature_valid = self.geometry.curvature(point_local)
             point = ContactPoint(
                 time_s=time_s,
@@ -382,13 +448,35 @@ class RigidContactKernel:
         previous_local = self._last_contact_local[key]
         swept = self.grid.swept_cells(previous_local, point_local) if points else ()
         self._last_contact_local[key] = point_local if points else None
-        footprint_radius = self.geometry.footprint_radius_m(solution.penetration_m, probe.radius_m)
+        if probe.shape == BOX:
+            # A rectangle has no radius. Reporting an equivalent-area radius
+            # would invent a number no measurement backs, so the field is
+            # null rather than a derived scalar; null and 0 are not the same
+            # claim anywhere in this contract.
+            footprint_radius = None
+            geometric_footprint = self.geometry.footprint_rect_m2(
+                solution.position_world_m, probe.footprint_half_extent_m, solution.gap_m
+            )
+            footprint_note = (
+                "box: geometric_footprint is the undeformed bottom-face overlap, "
+                "finite at zero penetration and resolution independent; "
+                "footprint_radius is null because a rectangle has no radius; "
+                f"per-cell load uses {BOX_UNIFORM_PROXY}, which understates the "
+                "rim because a rigid flat punch has an edge pressure singularity"
+            )
+        else:
+            footprint_radius = self.geometry.footprint_radius_m(
+                solution.penetration_m, probe.radius_m
+            )
+            geometric_footprint = math.pi * footprint_radius**2
+            footprint_note = AreaLayers.note
         area_layers = AreaLayers(
             point_occupancy_m2=len(cells) * self.config.grid.cell_area_m2,
             swept_path_m2=len(swept) * self.config.grid.cell_area_m2,
-            geometric_footprint_m2=math.pi * footprint_radius**2,
+            geometric_footprint_m2=geometric_footprint,
             footprint_radius_m=footprint_radius,
             swept_cell_count=len(swept),
+            note=footprint_note,
         )
 
         point_force = sum(item.normal_force_n for item in points)

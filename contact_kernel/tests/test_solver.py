@@ -170,13 +170,36 @@ def test_substep_traces_cover_the_whole_control_interval():
     assert sum(trace.physics_dt_s for trace in traces) == pytest.approx(DT)
 
 
+def test_box_probe_is_accepted_and_reports_its_own_support_offset():
+    # Superseded the former "box raises NotImplementedError(K3)" assertion:
+    # P2.2.1 implements the flat-bottom box, so the old test was pinning the
+    # absence of a feature that now exists. The malformed cases below keep the
+    # loud-failure guarantee the old test was really protecting.
+    box = ProbeSpec(id="/World/Box", shape="box", mass_kg=0.08,
+                    initial_position_world_m=(0, 0, 1.2), size_m=(0.1, 0.2, 0.05))
+    assert box.support_offset_m == pytest.approx(0.025)
+    assert box.footprint_half_extent_m == pytest.approx((0.05, 0.1))
+
+
 def test_unsupported_probe_shapes_fail_loudly():
-    with pytest.raises(NotImplementedError, match="K3"):
+    with pytest.raises(ValueError, match="positive size_m"):
         ProbeSpec(id="/World/Box", shape="box", mass_kg=0.08,
-                  initial_position_world_m=(0, 0, 1.2), size_m=(0.1, 0.1, 0.05))
+                  initial_position_world_m=(0, 0, 1.2), size_m=(0.1, 0.1, 0.0))
+    with pytest.raises(ValueError, match="size_m"):
+        ProbeSpec(id="/World/Box", shape="box", mass_kg=0.08,
+                  initial_position_world_m=(0, 0, 1.2))
+    with pytest.raises(ValueError, match="must not declare radius_m"):
+        ProbeSpec(id="/World/Box", shape="box", mass_kg=0.08,
+                  initial_position_world_m=(0, 0, 1.2), size_m=(0.1, 0.1, 0.05),
+                  radius_m=0.05)
     with pytest.raises(ValueError):
         ProbeSpec(id="/World/Odd", shape="capsule", mass_kg=0.08,
                   initial_position_world_m=(0, 0, 1.2), radius_m=0.1)
+    # A sphere probe must still refuse to be rotation-free, box or not.
+    with pytest.raises(ValueError, match="rotation-locked"):
+        ProbeSpec(id="/World/Free", shape="box", mass_kg=0.08,
+                  initial_position_world_m=(0, 0, 1.2), size_m=(0.1, 0.1, 0.05),
+                  angular_mode="free")
 
 
 def test_substeps_must_cover_the_control_interval_exactly():

@@ -13,7 +13,7 @@
   "spec_id": "k2_force_cpu",
   "spec_sha256": "4879f5e0ad6fc3c483be839a9fab7a0a1597e62b9342e65ae895f258ad41088c",
   "conditions_sha256": "bf72725e04fa7c58795feac83c5c2ddb871d585ea0da2f25f452fbd253690a75",
-  "manifest_sha256": "ddf4dfeb604ccd2cb9ab1c7496a26f6f7485661d761ef486c56d078317dc0d5f",
+  "manifest_sha256": "cd2c838c7ef84991ff969ad2a7e45834b6c392d93fb6c0fbabbce77035dd41c9",
   "run_directory": "k2-force-cpu",
   "frames": 797,
   "simulated_time_s": 13.283333333333333,
@@ -150,7 +150,7 @@
     {
       "path": "environment.json",
       "role": "summary",
-      "sha256": "94f89cb808d7ed4da3334692e5795bacd0e4585e0139c54c46e96925c7f47802"
+      "sha256": "874d4219de97fda89fefc12bbf98261d06fbeef6b7ca402986c2920695f4ab4b"
     },
     {
       "path": "actual_commands.jsonl",

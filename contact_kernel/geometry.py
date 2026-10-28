@@ -57,7 +57,13 @@ class ContactQuery:
 
 
 class TopFaceGeometry:
-    """Sphere-versus-finite-top-face queries in world coordinates."""
+    """Probe-versus-finite-top-face queries in world coordinates.
+
+    ``query_sphere`` is the K1 path and is left exactly as it was frozen.
+    ``query_box`` is the P2.2 addition; it is a separate entry point rather
+    than a generalisation of the sphere case, so the single-probe gates keep
+    running against byte-identical code.
+    """
 
     def __init__(self, surface: SurfaceSpec):
         self.surface = surface
@@ -83,6 +89,90 @@ class TopFaceGeometry:
             inside_face=inside,
             rejected_reason=reason,
         )
+
+    def query_box(
+        self,
+        center_world: Vec3,
+        half_extent_m: tuple[float, float],
+        half_height_m: float,
+        *,
+        surface_offset_m: float = 0.0,
+    ) -> ContactQuery:
+        """Separation of a rotation-locked box's bottom face from the top face.
+
+        Rotation is locked, so the bottom face stays parallel to the top face
+        and every point on it shares one ``gap_m``. That is why this returns a
+        single query rather than one per corner: a per-corner tuple would carry
+        four copies of the same number and invite a reader to believe the
+        solver resolves a tilted box, which it does not.
+
+        The multi-point nature of a flat contact lives in the *footprint*, not
+        in the dynamics; see ``SurfaceGrid.rect_coverage``.
+
+        ``point_world`` is the footprint centroid clamped onto the face, so a
+        partially overhanging box still reports a representative point that
+        lies on the surface it is touching.
+        """
+        x, y, z = center_world
+        plane_z = self.top_z_m + surface_offset_m
+        gap = z - half_height_m - plane_z
+        half_x, half_y = half_extent_m
+        cx, cy = self.surface.center_world_m[0], self.surface.center_world_m[1]
+
+        # Overlap of the bottom rectangle with the finite top face.
+        overlap_x = min(x + half_x, cx + self.half_x_m) - max(x - half_x, cx - self.half_x_m)
+        overlap_y = min(y + half_y, cy + self.half_y_m) - max(y - half_y, cy - self.half_y_m)
+        inside = overlap_x > 0.0 and overlap_y > 0.0
+        if inside:
+            point = (
+                (min(x + half_x, cx + self.half_x_m) + max(x - half_x, cx - self.half_x_m)) / 2.0,
+                (min(y + half_y, cy + self.half_y_m) + max(y - half_y, cy - self.half_y_m)) / 2.0,
+                plane_z,
+            )
+            reason = ""
+        else:
+            point = (x, y, plane_z)
+            reason = "support_point_outside_top_face"
+        return ContactQuery(
+            present=gap <= 0.0 and inside,
+            gap_m=gap,
+            point_world=point,
+            normal_world=self.normal_world,
+            inside_face=inside,
+            rejected_reason=reason,
+        )
+
+    def footprint_rect_m2(
+        self,
+        center_world: Vec3,
+        half_extent_m: tuple[float, float],
+        gap_m: float,
+    ) -> float:
+        """Undeformed-shape intersection area of a flat-bottom box on the face.
+
+        This differs from the sphere case in kind, not just in formula. A
+        sphere touching at ``gap = 0`` intersects the plane in a *point*, so
+        its geometric footprint is zero — that zero is the whole reason an
+        elastic contact area needs a material model. A box touching at
+        ``gap = 0`` intersects it in the full bottom *rectangle*, so here the
+        geometric footprint is finite and is already the rigid-limit contact
+        area. It is also resolution independent, unlike point occupancy.
+
+        Returns 0.0 when separated: an area is claimed only while touching.
+        """
+        if gap_m > 0.0:
+            return 0.0
+        half_x, half_y = half_extent_m
+        cx, cy = self.surface.center_world_m[0], self.surface.center_world_m[1]
+        overlap_x = min(center_world[0] + half_x, cx + self.half_x_m) - max(
+            center_world[0] - half_x, cx - self.half_x_m
+        )
+        overlap_y = min(center_world[1] + half_y, cy + self.half_y_m) - max(
+            center_world[1] - half_y, cy - self.half_y_m
+        )
+        if overlap_x <= 0.0 or overlap_y <= 0.0:
+            return 0.0
+        return overlap_x * overlap_y
 
     def to_local(self, point_world: Vec3) -> Vec3:
         return sub(point_world, self.surface.center_world_m)
@@ -208,4 +298,53 @@ class SurfaceGrid:
                             covered += 1
                 if covered:
                     coverage[(row, col)] = covered * weight
+        return coverage
+
+    def rect_coverage(
+        self,
+        center_local: Vec3,
+        half_extent_m: tuple[float, float],
+    ) -> dict[tuple[int, int], float]:
+        """Per-cell area fraction covered by an axis-aligned rectangle.
+
+        Returns ``{(row, col): alpha}`` with ``alpha`` in ``(0, 1]``.
+
+        Unlike ``disc_coverage`` this is *exact*: an axis-aligned rectangle
+        overlaps an axis-aligned cell in a rectangle, so the fraction is a
+        product of two 1-D overlaps and needs no sub-cell quadrature. There is
+        therefore no convergence parameter to tune and no quadrature error to
+        declare — a difference worth keeping visible, because the disc case
+        carries both.
+
+        The returned alphas are a *geometric* footprint of the undeformed box.
+        They are not a pressure distribution and not an elastic contact area;
+        cell count scales with grid resolution while the physical footprint
+        does not, which is exactly the proxy-versus-model split that P2.2.3
+        measures.
+        """
+        half_x, half_y = half_extent_m
+        if half_x <= 0.0 or half_y <= 0.0:
+            return {}
+        lo_x, hi_x = center_local[0] - half_x, center_local[0] + half_x
+        lo_y, hi_y = center_local[1] - half_y, center_local[1] + half_y
+        col_lo = math.floor((lo_x - self.origin_local_m[0]) / self.cell_size_m)
+        col_hi = math.floor((hi_x - self.origin_local_m[0]) / self.cell_size_m)
+        row_lo = math.floor((lo_y - self.origin_local_m[1]) / self.cell_size_m)
+        row_hi = math.floor((hi_y - self.origin_local_m[1]) / self.cell_size_m)
+        coverage: dict[tuple[int, int], float] = {}
+        for row in range(row_lo, row_hi + 1):
+            if not 0 <= row < self.spec.rows:
+                continue
+            y0 = self.origin_local_m[1] + row * self.cell_size_m
+            span_y = min(hi_y, y0 + self.cell_size_m) - max(lo_y, y0)
+            if span_y <= 0.0:
+                continue
+            for col in range(col_lo, col_hi + 1):
+                if not 0 <= col < self.spec.cols:
+                    continue
+                x0 = self.origin_local_m[0] + col * self.cell_size_m
+                span_x = min(hi_x, x0 + self.cell_size_m) - max(lo_x, x0)
+                if span_x <= 0.0:
+                    continue
+                coverage[(row, col)] = (span_x * span_y) / self.cell_area_m2
         return coverage

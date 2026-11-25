@@ -1,146 +1,240 @@
 # tactile-render-stack
 
-> **Phase 2 已收尾（2026-11-25）。** K0–K2 完成；与 Isaac Sim 的比对、逐步记录和后续待办见 [`docs/step_record/`](docs/step_record/)，从 [`10-Phase2总推进.md`](docs/step_record/10-Phase2总推进.md) 读起。
+`tactile-render-stack` is the second phase of the Virtual Immersion roadmap. It decouples the tactile rendering pipeline from Isaac Sim: a self-contained CPU contact kernel replaces the simulator as the authoritative physics source, and a five-layer loop carries every contact from virtual-world state to an actuator command under versioned, machine-checked contracts.
 
-把虚拟世界里的一次接触，变成可以驱动执行器的标准触觉目标。
+Phase 1, [isaacsim-rigid-contact-pipeline](https://github.com/Heathcliff3302/isaacsim-rigid-contact-pipeline), established the rigid-contact baseline in Isaac Sim and is retained as reference evidence. This repository reproduces that baseline without a simulator and validates the result against Isaac Sim numerically.
 
-图形渲染把场景变成像素。触觉渲染要把接触变成力、振动和形变，中间同样需要一套统一的信息链路，而不是让每种执行器各自去猜物体是什么手感。这个仓库就是那条链路的工程实现。
+## Status
 
-本仓库是「具身触觉与虚拟潜行」项目的**第二阶段**。第一阶段在 Isaac Sim 上建立了刚体接触基线，位于 [isaacsim-rigid-contact-pipeline](https://github.com/Heathcliff3302/isaacsim-rigid-contact-pipeline)，作为参考证据保留。第二阶段把整条链路从仿真平台上解耦下来。
+Phase 2 was closed on 2026-11-25.
 
-## 五层链路
+| Milestone | Scope | Status |
+| --- | --- | --- |
+| K0 Baseline and experiment contracts | Phase 1 parameter provenance, CPU reference specifications, JSON Schemas, comparison profile | Complete |
+| K1 Single-probe rigid mode | Decoupled kernel, five-layer loop, 10 acceptance gates, runtime field verdicts | Complete, frozen |
+| K2 Force control and regression | PI normal-force regulation to 1 N, 13-channel dense field, curve report, 13 acceptance gates, Isaac Sim parity | Complete (2026-11-25) |
+| P2.2 Multi-probe and resolution | P2.2.1 box probe with multi-cell contact; P2.2.2 independent per-pair streams; P2.2.3 resolution regression | P2.2.1 complete; P2.2.2 implemented, pending acceptance; P2.2.3 frozen |
+| P2.4 IMU texture spectrum | Spectral analysis for an external vibration reference | Analysis implemented; no data captured; retained as a side track |
+| K4 Material response | Hertz, elastic foundation, viscoelastic models | Transferred to Phase 3 as the physics baseline |
+| K5 Actuator loop | Hardware actuator calibration and closed loop | Out of scope; layer 5 is delegated to hardware vendors |
+
+Isaac Sim parity, measured on the aligned-parameter K1 and K2 runs against Isaac Sim 5.1.0:
+
+| Quantity | Result |
+| --- | --- |
+| Per-frame normal force, maximum difference | 1.3 × 10⁻⁸ N (K1), 1.6 × 10⁻⁷ N (K2) |
+| Contact onset step, contact normal, phase sequence, frame count | Identical |
+| Force steady state (±5 %, last 30 frames) | Both enter at frame 322 and hold |
+| Contact point | Identical in static contact; one control step apart while sliding, a declared reporting convention (PhysX reports contacts at step start, the kernel at step end) |
+
+The full record, including scope and the quantities that were not compared, is in [`docs/step_record/17-Phase2收尾-Isaac比对.md`](docs/step_record/17-Phase2收尾-Isaac比对.md). The phase overview is [`docs/step_record/10-Phase2总推进.md`](docs/step_record/10-Phase2总推进.md).
+
+## Table of Contents
+
+- [Status](#status)
+- [Scope](#scope)
+- [Repository Structure](#repository-structure)
+- [Five-Layer Pipeline](#five-layer-pipeline)
+- [Contact Data Sources](#contact-data-sources)
+- [Usage](#usage)
+- [Validation](#validation)
+- [Evidence Rules](#evidence-rules)
+- [Boundaries](#boundaries)
+- [Documentation](#documentation)
+
+## Scope
+
+The phase answers three questions:
+
+1. Can the Phase 1 rigid-contact baseline be reproduced without a simulator, on a kernel that runs on CPU and depends only on the standard library?
+2. Can layer 2 become an open boundary, so that any contact source producing valid `InteractionState v2` records drives layers 3 to 5 unchanged?
+3. Does the kernel agree numerically with Isaac Sim under the same physical assumptions?
+
+The kernel solves one rotation-locked sphere or box probe against one fixed plane, with zero friction and zero restitution. It is a reference implementation for these assumptions, not a general rigid-body solver.
+
+## Repository Structure
 
 ```text
-层 1  虚拟世界状态    物体位姿、速度、轨迹命令、固定仿真时钟
-        ↓
-层 2  接触检测        接触点、法向、间隙、相对速度、接触区域   → InteractionState
-        ↓
-层 3  材料响应        刚度、阻尼、粘弹、接触面积、压力场       → MaterialResponse
-        ↓
-层 4  标准触觉目标    与设备无关的力 / 振动 / 温度目标         → TactileTarget
-        ↓
-层 5  执行器逆模型    量程、带宽、非线性、延迟、看门狗         → ActuatorCommand / Measurement
+├── virtual_reality/     // Layer 1: world state, trajectory and force state machines, fixed clock, field verdicts
+├── interaction/         // Layer 2: adapters from contact sources to InteractionState
+├── mechanics/           // Layer 3: material response models and experiment assembly
+├── std_tactile/         // Layer 4: tactile targets, target sequences, replay
+├── actuators/           // Layer 5: actuator commands, inverse model, measurement, watchdog
+├── contact_kernel/      // CPU contact kernel; standard library only; not part of any layer
+├── tactile_contract/    // Cross-layer contracts, JSON Schemas, serialisation and replay
+├── scenarios/           // Experiment specifications, parameter inventories, Isaac Sim tools
+├── validation/          // Acceptance gates, cross-backend comparison, Isaac Sim parity
+├── experiments/         // Run indexes and the Isaac Sim reference records
+├── docs/                // Design notes, plans and step records
+└── pyproject.toml       // Package metadata
 ```
 
-人体感知位于输出端，是验收对象，不是需要构建的技术层。
+The directory layout is stable across phases. Later phases add backends, models, scenarios and acceptance records; they do not introduce a parallel top-level architecture.
 
-## 解耦于 Isaac Sim，但不排斥它
-
-第一阶段的动力学和接触报告全部来自 Isaac Sim，这带来两个问题：
-
-1. 材料响应层被绑死在一个仿真平台上，测试、CI 和离线批处理都得先装仿真器。
-2. PhysX 的接触点是为动力学约束服务的，其数量受接触生成与缓存策略影响。把接触点占格直接当作接触面积，会得到一个随输出分辨率变化的假面积——对材料实验不成立。
-
-所以第二阶段做的不是"换一个仿真器"，而是**把层 2 变成一条开放边界**。`InteractionState v2` 是那条边界上的契约：任何接触数据来源，只要能产出通过校验的逐帧记录，层 3 到层 5 就无需改动地跑下去。
-
-| 接触数据来源 | 状态 |
-| --- | --- |
-| 自研 CPU 接触内核 `contact_kernel/` | **已实现**，仅依赖标准库 |
-| Isaac Sim | **已比对（2026-11-25）**：参数对齐时 K1/K2 与 Isaac Sim 5.1.0 一致；四份闭环记录存于 `experiments/isaac_reference/`，作为 pytest 回归。范围与限制见 `docs/step_record/17-Phase2收尾-Isaac比对.md` |
-| Unity 场景输入 | 未做（Unity 内置物理也是 PhysX，接入时保留后端标识，避免出现第二个求解器） |
-| 真实指尖数据 | Phase 3 |
-
-Isaac Sim 由此从"运行时依赖"变成"可选的接触数据来源之一"。
-
-同一个接触对、同一个时间步，只能有一个权威动力学求解器。层 1 持有内核实例，层 2 只读取并格式化，绝不自行推进物理。
-
-## 现在能跑什么
-
-K1（单探头刚体模式）已完成并冻结：一个球形探头压向固定平面，走完接近、保持、滑动、回撤、释放五段，全链路穿过五层。
+## Five-Layer Pipeline
 
 ```text
-段长度   pre_contact 30 | approach 175 | hold 60 | lateral_slide 60 | retract 117 | released 30
-         共 472 帧 / 7.87 s 仿真时间
+1. virtual-world state     pose, velocity, trajectory command, fixed simulation clock
+2. contact detection       contact points, normal, gap, relative velocity, contact region  -> InteractionState
+3. material response       stiffness, damping, viscoelasticity, contact area, pressure     -> MaterialResponse
+4. tactile target          device-independent force, vibration and temperature targets     -> TactileTarget
+5. actuator inverse model  range, bandwidth, non-linearity, latency, watchdog              -> ActuatorCommand
 ```
 
-十项验收门槛全部通过：
+Each control step runs all five layers in order and must produce a record from each; a missing record raises. Layer 1 owns the kernel instance and is the only stage that advances physics. Layer 2 reads and formats the kernel frame and never steps the solver, so each contact pair has exactly one authoritative dynamics solver per step. Controllers read feedback with an explicit one-step delay.
 
-| 门槛 | 结果 |
+Human perception is the acceptance target at the output, not a layer to be built.
+
+| Layer | Implementation | Limitation |
+| --- | --- | --- |
+| 1 | Trajectory and force state machines, runtime field verdicts, command limits, hard `max_duration_s` termination, load-time force-control checks | Single sphere, rotation locked, one fixed plane |
+| 2 | Point → Cell → Patch → Episode, 13-channel dense field, four area layers, versioned `InteractionState v2` | Area is an occupancy proxy; `physical_contact_area_m2` is `unavailable` |
+| 3 | `RigidBaselineMaterial`, `status = passthrough` | Stiffness and damping are `null` |
+| 4 | `NormalForceTargetStage`, one channel | Vibration and temperature are `null` |
+| 5 | Single-axis command path, inverse model, saturation, latency, watchdog | `status = modelled_not_measured`; no hardware |
+
+## Contact Data Sources
+
+| Source | Status |
 | --- | --- |
-| 运行完成所声明的程序 | `completed`，无中止，段序列完整 |
-| 单探头接触出现 | 121 个接触帧，峰值 `0.6 N` |
-| 保持阶段接触稳定 | 覆盖率 `1.0`，切向速度 `0.0 m/s` |
-| 受控段接触覆盖率达标 | `1.0`（门槛 `0.95`） |
-| 滑动速度达标 | 合格样本 `1.0`（门槛 `0.90`，容差 `±0.01 m/s`） |
-| 释放后接触力清零 | 释放段接触帧 0，最大总力 `0.0 N` |
-| 总力与冲量一致 | 冲量换算、法向加切向、Point→Cell→Patch 误差均为 `0.0 N`（门槛 `1e-5 N`） |
-| 时间步变化不改变数据语义 | 子步 1/2/4 的段序列、接触序列、Cell 与 Patch 序列完全相同 |
-| 稠密场与稀疏 Cell 一致 | 帧数等于控制步数，无接触段保留；未映射 cell 0，多余 cell 0，单格力误差 `3e-8 N` |
-| `InteractionState` 完整回放 | 18 个产物哈希校验 + 472 帧契约校验 |
+| CPU contact kernel, `contact_kernel/` | Implemented; standard library only |
+| Isaac Sim 5.1.0 | Compared (2026-11-25); four closed-loop records stored as a regression reference |
+| Unity scene input | Not implemented; Unity physics is also PhysX, so an integration must keep the backend identifier to avoid a second solver |
+| Real fingertip data | Phase 3 |
 
-## 快速开始
+## Usage
+
+### Prerequisites
+
+- Python 3.10 or later.
+- No simulator and no GPU. `contact_kernel/` depends only on the standard library; the rest depends on `numpy` and `jsonschema`.
+- Isaac Sim is needed only to recapture the reference records; see [Isaac Sim tools](#isaac-sim-tools).
+
+### Installation
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Linux/macOS: .venv/bin/python
-
-.venv/Scripts/python.exe -m mechanics.run_k1          # 跑 K1，写出完整运行目录
-.venv/Scripts/python.exe -m mechanics.run_k2          # 跑 K2 力控
-.venv/Scripts/python.exe -m pytest -q                 # 325 个测试，含 Isaac 存档回归
+.venv/Scripts/python.exe -m pip install -e ".[dev]"     # Linux/macOS: .venv/bin/python
 ```
 
-不需要 Isaac Sim，不需要 GPU。`contact_kernel/` 只依赖标准库，其余部分只依赖 `jsonschema` 和 `numpy`。
+### Running
 
-产物写入 `experiments/runs/<run_id>/`（不入库），精简索引写入 `experiments/index/`（入库，含规格哈希、条件哈希、清单哈希、门槛结果和全部产物哈希）。
+```bash
+.venv/Scripts/python.exe -m mechanics.run_k1            # K1 trajectory run
+.venv/Scripts/python.exe -m mechanics.run_k2            # K2 force-control run
+.venv/Scripts/python.exe -m mechanics.run_k3            # P2.2.1 box probe on the kernel
+.venv/Scripts/python.exe -m mechanics.run_k3_multi      # P2.2.2 multi-probe streams
+.venv/Scripts/python.exe -m pytest -q                   # 325 tests, including the Isaac Sim regression
+```
 
-## 证据规则
+Run commands from the repository root.
 
-这些规则由代码强制，不是风格约定。它们的共同目的是：**让"看起来通过了"和"真的通过了"无法混为一谈。**
+### Output
 
-- **不可用就是不可用。** 内核没有的量标为 `unavailable`，绝不写入伪造的零。刚体点接触没有物理接触面积，于是 `physical_contact_area_m2` 全程为空，而不是 0。
-- **每个观测量一个计算方法。** 方法名在整轮运行中恒定，并与实验清单绑定；适配器和清单读同一张表，不会互相偏离。
-- **面积分层标注。** 占格代理、扫过路径、几何投影、模型接触面积是四种不同的东西，同帧分别输出，各带方法名。压力由占格代理导出时，方法名和语义说明都会讲清它随分辨率变化。
-- **阈值台账。** 实验规格声明的每个阈值，要么被某个门槛消费，要么登记为显式延后到某个里程碑。两者之外的键直接报错——指标算了却没人比较，是这套台账专门防的失败。
-- **字段裁决。** 规格里的每个运行时字段带一个裁决：内核读取（`enforced`）、内核不读且已核验取值为空操作（`recorded_inert`）、只实现了一个取值其余拒绝（`single_implementation`）。不支持的取值在加载期拒绝，而不是在报告里记一笔备注。
-- **力控参数有三道天花板，清一道不代表清另一道。** 驱动钳位（能不能发出足够大的命令）、积分权限（稳态下还能不能维持那个命令，`force_ki × force_integral_limit ≥ F_target × output_dt / mass`）、比例稳定性（会不会收敛，`mass × force_kp / output_dt < 1`）。三者互相独立：照搬 Phase 1 的 `force_ki` 会在 0.75 N 处停住、一帧进不了容差带、20 s 超时中止，而它的压入上限是通过的；`force_kp = 0.2` 在声明的 60 Hz 下稳定、在 120 Hz 下持续振荡，而它的权限是充足的。三道都在加载期校验并给出所需取值。
+Each run writes a full run directory to `experiments/runs/<run_id>/`, which is not version-controlled: the experiment manifest, per-layer record streams, sparse points, cells and patches, the dense field `dense_contact_field.npz`, the effective runtime record, the acceptance report and `contact_report.html`. A compact index is written to `experiments/index/` and is version-controlled; it holds the specification, condition and manifest hashes, the gate results and the SHA-256 of every artifact.
 
-- **闭式校验描述的是理想驱动，所以还要实测一次。** `F = mass × commanded_speed / output_dt` 对本 CPU 参考精确，只因为它省略的每一项在这里恰好为零。把 `linear_damping_per_s`（裁决为 `enforced`，内核确实读取）设为 30，三道闭式校验全部通过并报告可达 1.5 N，而内核实际只交付 0.75 N。因此最后一道检查在真实内核上按声明压入上限施力，读采样层实际报告的力。它同时声明自己**未**覆盖反馈延迟与 PI 增益——开环上限不是收敛结论，后者由闭环参数扫描回答。
+### Isaac Sim Tools
 
-- **比例不等于时长。** 只保留沉降后 1 帧，带内占比仍是 `1.0`，于是一次只保持 `0.0167 s` 的运行可以通过声明为 `1 s` 的保持要求。保持与滑动门槛因此同时要求时长达到声明值。沉降帧计入保持时长，与控制器自己的保持时钟一致——否则门槛测的窗口比控制器实际保持的少一帧。
+These run on a GPU machine with Isaac Sim 5.1.0 and are not needed for normal use.
 
-- **单次运行通过不是里程碑完成。** 一次通过的 CPU 参考运行是一个后端、一个场景。`run_acceptance_passed` 与 `milestone_complete` 是两个字段，后者由交付物台账 `milestone_status` 回答，缺项时报告子里程碑（如 `K2-A`）并列出缺什么。
-- **哈希绑定。** 实验清单绑定条件、观测量定义和每个产物的 SHA-256，回放时逐一校验。
-- **实现的轨迹就叫实现的轨迹。** 反馈产生的命令时序不会被伪装成预先已知的计划：运行跑两遍，第一遍记录真正发出的命令，第二遍据此盖章，两遍必须逐项相同。
+| Tool | Purpose |
+| --- | --- |
+| `validation/isaac_smoke.py` | Headless start, PhysX step and RTX render check |
+| `scenarios/capture_isaac_runtime.py` | Reads the effective PhysX settings of the Phase 1 scene |
+| `scenarios/isaac_replay.py` | Drives PhysX with this repository's controller and writes a closed-loop record |
+| `validation/isaac_parity.py` | Scores the kernel against Isaac Sim records |
+| `docs/autodl_isaac_setup.sh` | Environment setup for an AutoDL container |
 
-## 目录
+The NVIDIA driver must be 580.x. On 595.71.05 Isaac Sim 5.1.0 terminates with a segmentation fault in `librtx.scenedb.plugin` at renderer start-up.
+
+## Validation
+
+### K1 Acceptance Gates
+
+| Gate | Result |
+| --- | --- |
+| `run_completes_declared_program` | `completed`, no abort, all segments present |
+| `single_probe_contact_appears` | 121 contact frames, peak 0.6 N |
+| `hold_contact_is_stable` | Coverage 1.0, tangential speed 0.0 m/s |
+| `contact_coverage_meets_threshold` | 1.0 (threshold 0.95) |
+| `slide_speed_meets_threshold` | 1.0 of samples (threshold 0.90, tolerance ±0.01 m/s) |
+| `release_clears_contact_force` | No contact frames, peak force 0.0 N |
+| `force_matches_impulse_and_is_conserved` | Impulse, normal-plus-tangent and Point→Cell→Patch errors 0.0 N (threshold 10⁻⁵ N) |
+| `time_step_does_not_change_data_semantics` | Segment, contact, cell and patch sequences identical at 1, 2 and 4 substeps |
+| `dense_field_matches_sparse_cells` | No unmapped or extra cells; per-cell force error 3 × 10⁻⁸ N |
+| `interaction_state_replays_completely` | 18 artifact hashes and 472 frames validated against the contract |
+
+The K1 run has 472 frames (7.87 s): `pre_contact 30 | approach 175 | hold 60 | lateral_slide 60 | retract 117 | released 30`.
+
+### K2 Acceptance Gates
+
+K2 adds three force gates to the K1 set: `force_target_is_reached_and_held`, `force_held_through_slide` and `regulator_stays_within_declared_authority`. The K2 run has 797 frames.
+
+### Isaac Sim Regression
+
+`validation/tests/test_isaac_reference.py` reruns K1 and K2 on every test run and compares them with the stored Isaac Sim records in `experiments/isaac_reference/`. It requires per-frame normal force within 10⁻⁶ N, every frozen gate passing, and contact points within 0.1 mm under the declared convention. The records are locked by SHA-256; replacing them requires a new capture.
+
+## Evidence Rules
+
+The rules below are enforced in code. Their purpose is to make an apparent pass and a real pass impossible to confuse.
+
+| Rule | Requirement | Enforced in |
+| --- | --- | --- |
+| Unavailable values | A quantity the source cannot produce is recorded as `unavailable` or `null`, never as zero | `interaction/kernel_backend.py` |
+| One method per observable | Each observable has one computation method for the whole run, bound to the experiment manifest | `interaction/kernel_backend.py`, `tactile_contract/experiment.py` |
+| Area layers | Occupancy proxy, swept path, geometric footprint and model footprint are reported separately, each with its method name | `contact_kernel/kernel.py` (`AreaLayers`) |
+| Threshold ledger | Every declared threshold is consumed by a gate or registered as deferred; any other key is rejected | `validation/k1_acceptance.py` |
+| Field verdicts | Every runtime field is `enforced`, `recorded_inert` or `single_implementation`; unsupported values are rejected at load time | `virtual_reality/runtime_policy.py` |
+| Force-control limits | Drive clamp, integral authority and proportional stability are checked independently at load time | `virtual_reality/drive_limits.py` |
+| Measured drive authority | The closed-form limits are confirmed by applying the declared press limit on the kernel | `virtual_reality/authority_probe.py` |
+| Duration and fraction | Hold and slide gates require the declared duration, not only an in-band fraction | `validation/k1_acceptance.py` |
+| Run versus milestone | `run_acceptance_passed` and `milestone_complete` are separate fields; the latter comes from a deliverable ledger | `validation/k1_acceptance.py` (`milestone_status`) |
+| Hash binding | The manifest binds conditions, observable definitions and the SHA-256 of every artifact; replay verifies each | `tactile_contract/experiment.py` |
+| Realised commands | Feedback-driven commands are recorded in a first pass and stamped in a second; both passes must match exactly | `mechanics/k1_rigid.py` |
+| Frozen comparison thresholds | Cross-backend thresholds are code constants set before the comparison and are not changed to make a run pass | `validation/isaac_parity.py` (`THRESHOLDS`) |
+
+### Force-Control Limits
+
+The three force-control limits are independent; satisfying one does not imply the others.
+
+| Limit | Condition | Constrains |
+| --- | --- | --- |
+| Drive clamp | `max_press_speed × mass / output_dt ≥ F_target + tolerance` | Whether a large enough command can be issued |
+| Integral authority | `force_ki × force_integral_limit ≥ F_target × output_dt / mass` | Whether the command can be sustained in steady state |
+| Proportional stability | `mass × force_kp / output_dt < 1` | Whether the regulator converges |
+
+Two cases recorded during K2 show the independence. The Phase 1 value of `force_ki` passes the drive clamp but stalls at 0.75 N and times out at 20 s. `force_kp = 0.2` is stable at the declared 60 Hz and oscillates at 120 Hz although its authority is sufficient.
+
+The closed-form conditions assume an ideal drive. With `linear_damping_per_s = 30`, all three pass and predict 1.5 N while the kernel delivers 0.75 N. The measured authority probe therefore applies the declared press limit on the kernel and reads the reported force. It covers the open-loop ceiling only, not feedback delay or PI gains.
+
+## Boundaries
+
+- The kernel solves a rotation-locked sphere or box against one fixed plane, with zero friction and zero restitution. Unsupported configurations raise an error that names the milestone responsible, rather than being approximated.
+- Isaac Sim parity covers the aligned-parameter K1 and K2 runs only: rigid, single sphere, zero friction, normal contact. Friction and tangential force were not compared, because the PhysX contact report carries normal impulse only. Box and multi-probe runs were not compared.
+- PhysX is not a ground truth for touch. Parity shows that the solver is correct under rigid assumptions, not that rigid assumptions describe real contact.
+- Layers 3, 4 and 5 use in-process interfaces with units, model identifiers and status flags. They are not versioned contracts yet.
+- Layer 5 has no hardware. Measurements come from a declared transfer model and are marked `status = modelled_not_measured`.
+- Regenerating the K0 inputs (`python -m scenarios.build_k0`) requires the Phase 1 repository in a sibling directory. The generated inputs are committed, so normal use does not need it.
+
+## Documentation
+
+| Document | Content |
+| --- | --- |
+| [`docs/step_record/`](docs/step_record/) | Phase overview, per-milestone records, Isaac Sim parity record and follow-up list |
+| [`docs/contact_kernel_design.md`](docs/contact_kernel_design.md) | Kernel design and external references: PhysX contact generation, Unity fixed-step simulation, Hertz contact, Drake hydroelastic contact |
+| [`docs/k1_single_probe_rigid.md`](docs/k1_single_probe_rigid.md) | K1 specification and acceptance |
+| [`docs/phase_boundary.md`](docs/phase_boundary.md) | Migration boundary from Phase 1 |
+| [`docs/plans/`](docs/plans/) | K1 and K2 implementation plans |
+| [`tactile_contract/`](tactile_contract/) | Contract specifications and JSON Schemas |
+
+The long-term stack this repository belongs to:
 
 ```text
-virtual_reality/     层 1：世界状态、轨迹状态机、固定时钟、字段裁决
-interaction/         层 2：各接触后端到 InteractionState 的适配器
-mechanics/           层 3：材料响应模型，以及 K1 实验装配
-std_tactile/         层 4：触觉目标、目标序列、回放
-actuators/           层 5：执行器命令、逆模型、测量、看门狗
-contact_kernel/      自研 CPU 接触内核，仅依赖标准库，不属于任何一层
-tactile_contract/    跨层契约、五层边界记录、JSON Schema、序列化与回放
-scenarios/           实验场景、参数清单、标准输入
-validation/          验收门槛、跨后端比较、趋势指标
-experiments/         运行索引与产物
-docs/                设计、决策、复现说明
+1. virtual-world state
+2. contact detection and contact field
+3. material response
+4. tactile target representation
+5. actuator inverse model and hardware output
 ```
 
-目录结构跨阶段保持稳定。新阶段只增加后端、模型、场景或验收记录，不复制一套新的顶层架构。
-
-## 进度
-
-| 里程碑 | 状态 |
-| --- | --- |
-| K0 基线与实验契约 | 已完成：参数清单、原始证据索引、CPU 参考规格、比较 profile |
-| K1 单探头刚体模式 | **已完成**：解耦内核、五层闭环、十项门槛、字段裁决，见 [`docs/k1_single_probe_rigid.md`](docs/k1_single_probe_rigid.md) |
-| K2 Step 6 控制与回归 | **已完成（2026-11-25）**：CPU 刚体力控参考链路，PI 法向力调节、1 N 目标、13 通道稠密触觉场、曲线报告、十三项门槛；Isaac Sim 参数采集、闭环适配器与比对报告见 [`docs/step_record/17-Phase2收尾-Isaac比对.md`](docs/step_record/17-Phase2收尾-Isaac比对.md) |
-| P2.2 多探头与分辨率 | 盒形探头多 Cell 完成；多探头独立流已实现、未验收；分辨率回归冻结。见 [`docs/step_record/15-P2.2-多探头与盒形探头.md`](docs/step_record/15-P2.2-多探头与盒形探头.md) |
-| K4 模型接触区域 | 移交 Phase 3，作为物理基线 |
-| K5 Unity 与最小五层闭环 | 层 5 出界（由硬件厂商负责）；遗留项见 [`docs/step_record/20-后续待办清单.md`](docs/step_record/20-后续待办清单.md) |
-
-## 边界声明
-
-写在前面比事后解释好：
-
-- K1 只求解一个转动锁定的球形探头对一个固定平面，单接触点，零摩擦，零恢复系数。这不是通用刚体求解器；盒形探头、多接触点、堆叠和任意网格会显式抛错并指向对应里程碑，而不是静默近似。
-- 层 3、层 4、层 5 的记录目前是进程内接口，带单位、模型标识和状态标记，但还不是冻结契约。它们在 K4 和 K5 升级为带版本的 Schema——那时才有真实材料模型和真实执行器来定义什么必须保持稳定。
-- 层 5 尚未接硬件。测量值由声明的传递模型产生，记录带 `status = modelled_not_measured`。
-- **与 Isaac Sim 之间目前只有行为与守恒门槛，没有数值等价结论。** 未解析的 PhysX 有效运行时参数采集完成之前，两者只做趋势比较。
-- 重新生成 K0 输入（`python -m scenarios.build_k0`）需要 Phase 1 仓库在同级目录，因为它从 Step 6 源码里提取参数并记录其哈希。仓库内已包含生成结果，日常运行不需要它。
-
-## 许可与引用
-
-设计推理与外部依据记录在 [`docs/contact_kernel_design.md`](docs/contact_kernel_design.md)，其中包含 PhysX 接触生成、Unity 固定步长模拟、Hertz 接触模型和 Drake hydroelastic 的出处。
+Phase 2 provides layers 1 and 2 for rigid contact with a validated kernel, and placeholder records for layers 3 to 5. Phase 3 learns layers 2 and 3 from real fingertip data; layer 5 is delegated to hardware vendors.

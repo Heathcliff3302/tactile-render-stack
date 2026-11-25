@@ -150,10 +150,16 @@ def kernel_config_from_spec(
     return config
 
 
-def trajectory_config_from_spec(spec) -> TrajectoryConfig:
+def trajectory_config_from_spec(spec, probe_index: int = 0) -> TrajectoryConfig:
+    """Segment-machine configuration for one probe.
+
+    ``probe_index`` selects whose ``retract_distance_m`` is used. The other
+    fields are shared controller parameters. Single-probe callers keep the
+    default and read exactly what they read before P2.2.2.
+    """
     data = spec.to_dict()
     parameters = data["controller"]["parameters"]
-    probe = data["probes"][0]
+    probe = data["probes"][probe_index]
     return TrajectoryConfig(
         pre_settle_time_s=parameters["pre_settle_time_s"],
         approach_timeout_s=parameters["approach_timeout_s"],
@@ -215,8 +221,9 @@ def controller_from_spec(spec):
     if mode == "force":
         return ForceFeedbackStateMachine(force_config_from_spec(spec))
     raise ValueError(
-        f"Controller mode {mode!r} is not implemented; 'multi_trajectory' "
-        f"arrives at K3"
+        f"Controller mode {mode!r} has no single segment machine; "
+        f"'multi_trajectory' runs one TrajectoryStateMachine per probe through "
+        f"virtual_reality.multi_world.MultiProbeWorldStage"
     )
 
 

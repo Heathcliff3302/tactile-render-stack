@@ -73,6 +73,12 @@ def press(kernel: RigidContactKernel, steps: int = 40):
     return pair
 
 
+def multi_cell_claim(rows) -> bool:
+    """True only if some grid saw contact and every contacting grid saw >1 cell."""
+    contacting = [row for row in rows if row["contact_present"]]
+    return bool(contacting) and all(row["active_cells"] > 1 for row in contacting)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="P2.2.1 box probe verification run")
     parser.add_argument("--grid", type=int, nargs="*", default=[32, 64, 128])
@@ -104,7 +110,9 @@ def main() -> int:
         "probe": {"shape": "box", "size_m": list(size), "start_z_m": args.probe_z},
         "rows": rows_out,
         "claims": {
-            "multi_cell": all(row["active_cells"] > 1 for row in rows_out if row["contact_present"]),
+            # any() first: without it a run with no contact at all reports
+            # multi_cell = true vacuously (found 2026-11-04 with --probe-z 1.2).
+            "multi_cell": multi_cell_claim(rows_out),
             "cell_count_scales_with_resolution": [row["active_cells"] for row in rows_out],
             "geometric_footprint_is_resolution_independent": len(
                 {round(row["geometric_footprint_m2"], 12) for row in rows_out}

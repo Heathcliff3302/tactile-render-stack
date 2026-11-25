@@ -1,0 +1,60 @@
+{
+  "schema": "p2.4-imu-session/v1",
+  "session_id": null,
+  "data_origin": "measured",
+  "device": {
+    "model": "LSM6DSV16X",
+    "odr_hz": null,
+    "operating_mode": "high_performance",
+    "units": null,
+    "bytes_per_sample": 6
+  },
+  "interface": {
+    "bus": null,
+    "clock_hz": null
+  },
+  "columns": {"time": "t_s", "x": "ax", "y": "ay", "z": "az"},
+  "segments": [
+    {
+      "segment_id": "blank_lifted_01",
+      "kind": "blank_lifted_slide",
+      "file": "blank_lifted_01.csv",
+      "trial": 1,
+      "speed": {"value_mps": null, "method": null},
+      "preload": {"description": "not in contact"},
+      "stroke": null,
+      "axes": {"slide": null, "normal": null},
+      "surface": null
+    },
+    {
+      "segment_id": "blank_static_01",
+      "kind": "blank_static_contact",
+      "file": "blank_static_01.csv",
+      "trial": 1,
+      "speed": {"value_mps": 0, "method": "commanded"},
+      "preload": {"description": null},
+      "stroke": "unidirectional",
+      "axes": {"slide": null, "normal": null},
+      "surface": {"name": null}
+    },
+    {
+      "segment_id": "P120_v12p5_t1",
+      "kind": "surface_slide",
+      "file": "P120_v12p5_t1.csv",
+      "trial": 1,
+      "speed": {"value_mps": 0.0125, "method": null},
+      "preload": {"description": null},
+      "stroke": null,
+      "axes": {"slide": null, "normal": null},
+      "surface": {"name": "sandpaper", "grit": 120, "grit_scale": null, "origin": null}
+    }
+  ],
+  "_notes": [
+    "Every null must be filled before load_session accepts the file; it rejects nulls on purpose.",
+    "columns maps the logger's CSV header to time and three accelerometer axes; t_s must be per-sample timestamps in seconds.",
+    "interface.bus is 'spi' or 'i2c'; clock_hz is the bus clock actually used (e.g. 400000 for 400 kHz I2C).",
+    "speed.method is 'measured', 'estimated' (hand-pushed) or 'commanded'; an estimate is fine if it says so.",
+    "grit_scale is 'FEPA' (P prefix) or 'CAMI' (no prefix), read from the sandpaper packaging.",
+    "units is 'g', 'mg' or 'm/s^2' for the three axis columns."
+  ]
+}

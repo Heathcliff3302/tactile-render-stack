@@ -74,3 +74,11 @@ def k1_run_directory(k1_run, k1_experiment, tmp_path_factory) -> Path:
     report = acceptance_report(k1_run)
     write_run(k1_run, directory, report, k1_experiment.effective_runtime())
     return directory
+
+
+@pytest.fixture(scope="session")
+def k2_run_directory(k2_run, k2_experiment, tmp_path_factory) -> Path:
+    directory = tmp_path_factory.mktemp("k2_run")
+    report = acceptance_report(k2_run)
+    write_run(k2_run, directory, report, k2_experiment.effective_runtime())
+    return directory

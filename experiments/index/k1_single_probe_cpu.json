@@ -13,7 +13,7 @@
   "spec_id": "k1_single_probe_cpu",
   "spec_sha256": "da9a776bca62b97bab95f60ad2ef7bdb3760425b468a5390796f92740fe3331e",
   "conditions_sha256": "1630ff1c88ed058077c5622330c5db000b019734f6341510d8625e206b73192d",
-  "manifest_sha256": "d607cc4e504700b2e54b7d3bd83ab5e1e2359fee792b0d0ef04adfafa3d22d9e",
+  "manifest_sha256": "67399e1bbd40a9d87726e3ee15528af745421605d2e8e690beb74b97ff8410d3",
   "run_directory": "k1-single-probe-cpu",
   "frames": 472,
   "simulated_time_s": 7.866666666666666,
@@ -124,7 +124,7 @@
     {
       "path": "effective_runtime.json",
       "role": "summary",
-      "sha256": "bac95fc6128f26888ad9651b69e6c46aaa77902211eac77df8f7b245cc9cfdeb"
+      "sha256": "231e534aad1849be62bfc6071d5f204564206f81b0fbfaf136119ebba0a1b673"
     },
     {
       "path": "acceptance.json",
@@ -134,7 +134,7 @@
     {
       "path": "environment.json",
       "role": "summary",
-      "sha256": "41849200e2c69ca12960640b303d60c1b09906bfee8249a618b347e063ae6df9"
+      "sha256": "26ae0871b8520da7c0f0fd09837a449752e3409190c2089295d3fd06a822fde0"
     },
     {
       "path": "actual_commands.jsonl",
@@ -194,7 +194,7 @@
     {
       "path": "contact_report.html",
       "role": "report",
-      "sha256": "1b5ca674f853e9834e4beacedabf2602498b08566127afc0c81215309229aa5f"
+      "sha256": "65881253f35523038ebb9490426fb6b1aee5d7585558dccc962b9c3d3786457a"
     },
     {
       "path": "curve_report_index.json",

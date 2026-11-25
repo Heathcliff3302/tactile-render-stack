@@ -148,7 +148,9 @@ def test_effective_runtime_records_the_drive_relocation_and_open_questions(k1_ex
     assert runtime["drive"]["gravity_compensation_mode"] == "per_substep_feedforward"
     assert "relocation_note" in runtime["drive"]
     assert runtime["unresolved_settings"] == []
-    assert "no claim of numeric" in runtime["isaac_sim_parity"]
+    # The parity claim must carry its scope and what it did not cover.
+    assert "zero friction" in runtime["isaac_sim_parity"]
+    assert "not compared" in runtime["isaac_sim_parity"]
 
 
 def test_environment_record_is_declared_as_host_specific(k1_run):

@@ -1,0 +1,669 @@
+{
+  "schema": "isaac-effective-runtime/v1",
+  "captured_utc": "2026-11-25T10:18:37.335002+00:00",
+  "scene_source": "Phase 1 scripts/step6_3.py create_scene, geometry copied verbatim",
+  "declared_geometry": {
+    "cube_center_world_m": [
+      0.0,
+      0.0,
+      0.25
+    ],
+    "cube_size_m": 0.5,
+    "probe_radius_m": 0.12,
+    "probe_mass_kg": 0.05,
+    "probe_home_z_m": 1.2,
+    "physics_dt_s": 0.016666666666666666
+  },
+  "host": {
+    "isaac_sim_version": "5.1.0.0",
+    "python": "3.11.18",
+    "platform": "Linux-5.15.0-78-generic-x86_64-with-glibc2.35"
+  },
+  "fields": {
+    "gravity_mps2": {
+      "value": [
+        0.0,
+        0.0,
+        -9.8100004196167
+      ],
+      "source": "/physicsScene gravityDirection * gravityMagnitude",
+      "origin": "authored",
+      "note": "direction=[0.0, 0.0, -1.0] magnitude=9.8100004196167"
+    },
+    "solver_type": {
+      "value": "TGS",
+      "source": "/physicsScene.physxScene:solverType",
+      "origin": "authored",
+      "note": ""
+    },
+    "scene_enable_ccd": {
+      "value": true,
+      "source": "/physicsScene.physxScene:enableCCD",
+      "origin": "authored",
+      "note": ""
+    },
+    "scene_enable_gpu_dynamics": {
+      "value": false,
+      "source": "/physicsScene.physxScene:enableGPUDynamics",
+      "origin": "authored",
+      "note": ""
+    },
+    "scene_broadphase_type": {
+      "value": "MBP",
+      "source": "/physicsScene.physxScene:broadphaseType",
+      "origin": "authored",
+      "note": ""
+    },
+    "scene_time_steps_per_second": {
+      "value": 60,
+      "source": "/physicsScene.physxScene:timeStepsPerSecond",
+      "origin": "authored",
+      "note": ""
+    },
+    "scene_bounce_threshold_velocity": {
+      "value": null,
+      "source": "/physicsScene.physxScene:bounceThresholdVelocity",
+      "origin": "absent",
+      "note": "attribute not present on this prim"
+    },
+    "scene_friction_offset_threshold": {
+      "value": 0.03999999910593033,
+      "source": "/physicsScene.physxScene:frictionOffsetThreshold",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "linear_damping_per_s": {
+      "value": 0.0,
+      "source": "/World/Fingertip.physxRigidBody:linearDamping",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "angular_damping_per_s": {
+      "value": 0.05000000074505806,
+      "source": "/World/Fingertip.physxRigidBody:angularDamping",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "initial_linear_velocity_mps": {
+      "value": [
+        0.0,
+        0.0,
+        -1.1445000171661377
+      ],
+      "source": "/World/Fingertip.physics:velocity",
+      "origin": "authored",
+      "note": ""
+    },
+    "max_depenetration_velocity_mps": {
+      "value": 3.0,
+      "source": "/World/Fingertip.physxRigidBody:maxDepenetrationVelocity",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "position_iterations": {
+      "value": 16,
+      "source": "/World/Fingertip.physxRigidBody:solverPositionIterationCount",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "velocity_iterations": {
+      "value": 1,
+      "source": "/World/Fingertip.physxRigidBody:solverVelocityIterationCount",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "sleep_threshold": {
+      "value": 0.0,
+      "source": "/World/Fingertip.physxRigidBody:sleepThreshold",
+      "origin": "authored",
+      "note": ""
+    },
+    "sleep_enabled": {
+      "value": false,
+      "source": "/World/Fingertip.physxRigidBody:sleepThreshold",
+      "origin": "authored",
+      "note": "derived: sleeping is possible iff physxRigidBody:sleepThreshold > 0"
+    },
+    "gravity_disabled": {
+      "value": false,
+      "source": "/World/Fingertip.physxRigidBody:disableGravity",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "stabilization_threshold": {
+      "value": 9.999999747378752e-06,
+      "source": "/World/Fingertip.physxRigidBody:stabilizationThreshold",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "ccd_mode": {
+      "value": false,
+      "source": "/World/Fingertip.physxRigidBody:enableCCD",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "initial_orientation_wxyz": {
+      "value": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "source": "/World/Fingertip.xformOp:orient",
+      "origin": "authored",
+      "note": ""
+    },
+    "contact_offset_m": {
+      "value": -Infinity,
+      "source": "/World/Fingertip.physxCollision:contactOffset",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "rest_offset_m": {
+      "value": -Infinity,
+      "source": "/World/Fingertip.physxCollision:restOffset",
+      "origin": "schema_fallback",
+      "note": ""
+    },
+    "static_friction": {
+      "value": 0.5,
+      "source": "/World/Physics_Materials/physics_material.physics:staticFriction",
+      "origin": "authored",
+      "note": ""
+    },
+    "dynamic_friction": {
+      "value": 0.5,
+      "source": "/World/Physics_Materials/physics_material.physics:dynamicFriction",
+      "origin": "authored",
+      "note": ""
+    },
+    "restitution": {
+      "value": 0.800000011920929,
+      "source": "/World/Physics_Materials/physics_material.physics:restitution",
+      "origin": "authored",
+      "note": ""
+    },
+    "friction_combine_mode": {
+      "value": null,
+      "source": "/World/Physics_Materials/physics_material.physxMaterial:frictionCombineMode",
+      "origin": "absent",
+      "note": "attribute not present on this prim"
+    },
+    "restitution_combine_mode": {
+      "value": null,
+      "source": "/World/Physics_Materials/physics_material.physxMaterial:restitutionCombineMode",
+      "origin": "absent",
+      "note": "attribute not present on this prim"
+    },
+    "material_prim_count": {
+      "value": 3,
+      "source": "stage traversal",
+      "origin": "authored",
+      "note": "more than one physics material on the stage; the contact pair may not use the one reported here. Paths: /World/Physics_Materials/physics_material, /World/Physics_Materials/physics_material_1, /World/Physics_Materials/physics_material_2"
+    },
+    "probe_mass_kg": {
+      "value": 0.05000000074505806,
+      "source": "/World/Fingertip.physics:mass",
+      "origin": "authored",
+      "note": ""
+    },
+    "probe_radius_m": {
+      "value": 0.12,
+      "source": "/World/Fingertip.radius",
+      "origin": "authored",
+      "note": ""
+    }
+  },
+  "capture_errors": [],
+  "attribute_inventory": {
+    "/World/Fingertip": {
+      "physics:angularVelocity": {
+        "value": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "authored": true
+      },
+      "physics:approximation": {
+        "value": "none",
+        "authored": false
+      },
+      "physics:centerOfMass": {
+        "value": [
+          -Infinity,
+          -Infinity,
+          -Infinity
+        ],
+        "authored": false
+      },
+      "physics:collisionEnabled": {
+        "value": true,
+        "authored": true
+      },
+      "physics:density": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physics:diagonalInertia": {
+        "value": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "authored": false
+      },
+      "physics:kinematicEnabled": {
+        "value": false,
+        "authored": false
+      },
+      "physics:mass": {
+        "value": 0.05000000074505806,
+        "authored": true
+      },
+      "physics:principalAxes": {
+        "value": "(0, 0, 0, 0)",
+        "authored": false
+      },
+      "physics:rigidBodyEnabled": {
+        "value": true,
+        "authored": false
+      },
+      "physics:startsAsleep": {
+        "value": false,
+        "authored": false
+      },
+      "physics:velocity": {
+        "value": [
+          0.0,
+          0.0,
+          -1.1445000171661377
+        ],
+        "authored": true
+      },
+      "physxCollision:contactOffset": {
+        "value": -Infinity,
+        "authored": false
+      },
+      "physxCollision:minTorsionalPatchRadius": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physxCollision:restOffset": {
+        "value": -Infinity,
+        "authored": false
+      },
+      "physxCollision:torsionalPatchRadius": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physxRigidBody:angularDamping": {
+        "value": 0.05000000074505806,
+        "authored": false
+      },
+      "physxRigidBody:cfmScale": {
+        "value": 0.02500000037252903,
+        "authored": false
+      },
+      "physxRigidBody:contactSlopCoefficient": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physxRigidBody:disableGravity": {
+        "value": false,
+        "authored": false
+      },
+      "physxRigidBody:enableCCD": {
+        "value": false,
+        "authored": false
+      },
+      "physxRigidBody:enableGyroscopicForces": {
+        "value": true,
+        "authored": false
+      },
+      "physxRigidBody:enableSpeculativeCCD": {
+        "value": false,
+        "authored": false
+      },
+      "physxRigidBody:linearDamping": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physxRigidBody:lockedPosAxis": {
+        "value": 0,
+        "authored": false
+      },
+      "physxRigidBody:lockedRotAxis": {
+        "value": 0,
+        "authored": false
+      },
+      "physxRigidBody:maxAngularVelocity": {
+        "value": 5729.580078125,
+        "authored": false
+      },
+      "physxRigidBody:maxContactImpulse": {
+        "value": Infinity,
+        "authored": false
+      },
+      "physxRigidBody:maxDepenetrationVelocity": {
+        "value": 3.0,
+        "authored": false
+      },
+      "physxRigidBody:maxLinearVelocity": {
+        "value": Infinity,
+        "authored": false
+      },
+      "physxRigidBody:retainAccelerations": {
+        "value": false,
+        "authored": false
+      },
+      "physxRigidBody:sleepThreshold": {
+        "value": 0.0,
+        "authored": true
+      },
+      "physxRigidBody:solveContact": {
+        "value": true,
+        "authored": false
+      },
+      "physxRigidBody:solverPositionIterationCount": {
+        "value": 16,
+        "authored": false
+      },
+      "physxRigidBody:solverVelocityIterationCount": {
+        "value": 1,
+        "authored": false
+      },
+      "physxRigidBody:stabilizationThreshold": {
+        "value": 9.999999747378752e-06,
+        "authored": false
+      },
+      "radius": {
+        "value": 0.12,
+        "authored": true
+      }
+    },
+    "/World/Cube": {
+      "physics:approximation": {
+        "value": "none",
+        "authored": false
+      },
+      "physics:collisionEnabled": {
+        "value": true,
+        "authored": true
+      },
+      "physxCollision:contactOffset": {
+        "value": 0.10000000149011612,
+        "authored": true
+      },
+      "physxCollision:minTorsionalPatchRadius": {
+        "value": 0.800000011920929,
+        "authored": true
+      },
+      "physxCollision:restOffset": {
+        "value": 0.0,
+        "authored": true
+      },
+      "physxCollision:torsionalPatchRadius": {
+        "value": 1.0,
+        "authored": true
+      },
+      "size": {
+        "value": 1.0,
+        "authored": true
+      }
+    },
+    "/physicsScene": {
+      "physics:gravityDirection": {
+        "value": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "authored": true
+      },
+      "physics:gravityMagnitude": {
+        "value": 9.8100004196167,
+        "authored": true
+      },
+      "physxScene:bounceThreshold": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physxScene:broadphaseType": {
+        "value": "MBP",
+        "authored": true
+      },
+      "physxScene:collisionSystem": {
+        "value": "PCM",
+        "authored": false
+      },
+      "physxScene:enableCCD": {
+        "value": true,
+        "authored": true
+      },
+      "physxScene:enableEnhancedDeterminism": {
+        "value": false,
+        "authored": false
+      },
+      "physxScene:enableExternalForcesEveryIteration": {
+        "value": false,
+        "authored": false
+      },
+      "physxScene:enableGPUDynamics": {
+        "value": false,
+        "authored": true
+      },
+      "physxScene:enableResidualReporting": {
+        "value": false,
+        "authored": false
+      },
+      "physxScene:enableSceneQuerySupport": {
+        "value": true,
+        "authored": false
+      },
+      "physxScene:enableStabilization": {
+        "value": false,
+        "authored": true
+      },
+      "physxScene:frictionCorrelationDistance": {
+        "value": 0.02500000037252903,
+        "authored": false
+      },
+      "physxScene:frictionOffsetThreshold": {
+        "value": 0.03999999910593033,
+        "authored": false
+      },
+      "physxScene:frictionType": {
+        "value": "patch",
+        "authored": false
+      },
+      "physxScene:gpuCollisionStackSize": {
+        "value": 67108864,
+        "authored": false
+      },
+      "physxScene:gpuFoundLostAggregatePairsCapacity": {
+        "value": 1024,
+        "authored": false
+      },
+      "physxScene:gpuFoundLostPairsCapacity": {
+        "value": 262144,
+        "authored": false
+      },
+      "physxScene:gpuHeapCapacity": {
+        "value": 67108864,
+        "authored": false
+      },
+      "physxScene:gpuMaxDeformableSurfaceContacts": {
+        "value": 1048576,
+        "authored": false
+      },
+      "physxScene:gpuMaxNumPartitions": {
+        "value": 8,
+        "authored": false
+      },
+      "physxScene:gpuMaxParticleContacts": {
+        "value": 1048576,
+        "authored": false
+      },
+      "physxScene:gpuMaxRigidContactCount": {
+        "value": 524288,
+        "authored": false
+      },
+      "physxScene:gpuMaxRigidPatchCount": {
+        "value": 81920,
+        "authored": false
+      },
+      "physxScene:gpuMaxSoftBodyContacts": {
+        "value": 1048576,
+        "authored": false
+      },
+      "physxScene:gpuTempBufferCapacity": {
+        "value": 16777216,
+        "authored": false
+      },
+      "physxScene:gpuTotalAggregatePairsCapacity": {
+        "value": 1024,
+        "authored": false
+      },
+      "physxScene:invertCollisionGroupFilter": {
+        "value": false,
+        "authored": false
+      },
+      "physxScene:maxBiasCoefficient": {
+        "value": Infinity,
+        "authored": false
+      },
+      "physxScene:maxPositionIterationCount": {
+        "value": 255,
+        "authored": false
+      },
+      "physxScene:maxVelocityIterationCount": {
+        "value": 255,
+        "authored": false
+      },
+      "physxScene:minPositionIterationCount": {
+        "value": 1,
+        "authored": false
+      },
+      "physxScene:minVelocityIterationCount": {
+        "value": 0,
+        "authored": false
+      },
+      "physxScene:reportKinematicKinematicPairs": {
+        "value": false,
+        "authored": false
+      },
+      "physxScene:reportKinematicStaticPairs": {
+        "value": false,
+        "authored": false
+      },
+      "physxScene:solverType": {
+        "value": "TGS",
+        "authored": true
+      },
+      "physxScene:timeStepsPerSecond": {
+        "value": 60,
+        "authored": true
+      },
+      "physxScene:updateType": {
+        "value": "Synchronous",
+        "authored": false
+      }
+    },
+    "/World/Physics_Materials/physics_material": {
+      "physics:density": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physics:dynamicFriction": {
+        "value": 0.5,
+        "authored": true
+      },
+      "physics:restitution": {
+        "value": 0.800000011920929,
+        "authored": true
+      },
+      "physics:staticFriction": {
+        "value": 0.5,
+        "authored": true
+      }
+    },
+    "/World/Physics_Materials/physics_material_1": {
+      "physics:density": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physics:dynamicFriction": {
+        "value": 1.0,
+        "authored": true
+      },
+      "physics:restitution": {
+        "value": 0.0,
+        "authored": true
+      },
+      "physics:staticFriction": {
+        "value": 0.20000000298023224,
+        "authored": true
+      }
+    },
+    "/World/Physics_Materials/physics_material_2": {
+      "physics:density": {
+        "value": 0.0,
+        "authored": false
+      },
+      "physics:dynamicFriction": {
+        "value": 1.0,
+        "authored": true
+      },
+      "physics:restitution": {
+        "value": 0.0,
+        "authored": true
+      },
+      "physics:staticFriction": {
+        "value": 0.20000000298023224,
+        "authored": true
+      }
+    }
+  },
+  "summary": {
+    "expected_fields": 18,
+    "fields_read": 16,
+    "fields_not_located": [],
+    "fields_still_unresolved": [
+      "friction_combine_mode",
+      "restitution_combine_mode"
+    ],
+    "authored": [
+      "dynamic_friction",
+      "gravity_mps2",
+      "initial_linear_velocity_mps",
+      "initial_orientation_wxyz",
+      "material_prim_count",
+      "probe_mass_kg",
+      "probe_radius_m",
+      "restitution",
+      "scene_broadphase_type",
+      "scene_enable_ccd",
+      "scene_enable_gpu_dynamics",
+      "scene_time_steps_per_second",
+      "sleep_enabled",
+      "sleep_threshold",
+      "solver_type",
+      "static_friction"
+    ],
+    "schema_fallback": [
+      "angular_damping_per_s",
+      "ccd_mode",
+      "contact_offset_m",
+      "gravity_disabled",
+      "linear_damping_per_s",
+      "max_depenetration_velocity_mps",
+      "position_iterations",
+      "rest_offset_m",
+      "scene_friction_offset_threshold",
+      "stabilization_threshold",
+      "velocity_iterations"
+    ],
+    "note": "a schema_fallback value is the USD fallback for an unauthored attribute, which is weaker evidence than an authored value: PhysX may use an internal default USD does not expose. Fields listed as still unresolved must stay unresolved in the K0 inventory"
+  }
+}

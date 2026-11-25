@@ -398,7 +398,8 @@ def build_report(run, report: dict, effective_runtime: dict) -> str:
   本次运行 <code>physical_contact_area_m2</code> 全程为 <code>unavailable</code>。
   层 5 的 <code>measured_force_n</code> 由声明的传递模型产生，
   <code>status = modelled_not_measured</code>，未接硬件。
-  与 Isaac Sim 之间目前只有行为与守恒门槛，没有数值等价结论。
+  与 Isaac Sim 的数值比对（2026-11-25）只覆盖单球、刚体、零摩擦、法向接触的 K1/K2；
+  摩擦与切向力未比对。
 </p>
 
 <p class="sub">

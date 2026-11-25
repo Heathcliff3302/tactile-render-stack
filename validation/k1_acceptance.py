@@ -70,6 +70,22 @@ DEFERRED_ACCEPTANCE_KEYS: dict[str, str] = {
     "resolution_force_spread_max": "K3: 32/64/128 output grid refinement",
 }
 
+#: P2.2.2: thresholds a ``multi_trajectory`` specification must declare, and
+#: the multi-stream gate that reads them (``validation/multi_acceptance.py``).
+#: In that mode ``patch_coverage_min`` is consumed, not deferred. Single-probe
+#: specifications keep it in ``DEFERRED_ACCEPTANCE_KEYS``: one probe cannot
+#: produce the simultaneous patches the threshold is about, and adding a gate
+#: to K1/K2 would change their frozen gate sets.
+MULTI_ACCEPTANCE_KEY_GATES: dict[str, tuple[str, ...]] = {
+    "patch_coverage_min": ("patch_ids_are_stable",),
+    "primary_patch_min_occupancy": ("patch_ids_are_stable",),
+}
+
+#: What stays deferred in ``multi_trajectory`` mode.
+MULTI_DEFERRED_ACCEPTANCE_KEYS: dict[str, str] = {
+    "resolution_force_spread_max": "P2.2.3: 32/64/128 output grid refinement",
+}
+
 #: Gates that read one run, in report order, in every mode.
 RUN_GATE_ORDER = (
     "run_completes_declared_program",
@@ -133,8 +149,14 @@ MILESTONE_DELIVERABLES: dict[str, dict[str, tuple[bool, str]]] = {
             True, "contact_report.html plots the realised trajectory, force and "
                   "regulation band from the run's own arrays"
         ),
+        # Delivered 2026-11-25 (B1-B3). Scope is the aligned-parameter K1/K2 runs only:
+        # rigid, single sphere, zero friction, normal contact. The contact-point gate
+        # failed on a one-step reporting convention (PhysX reports contacts at step
+        # start, the kernel at step end); the user ruled it a declared convention
+        # difference (option a). Locked as regression by validation/tests/test_isaac_reference.py.
         "isaac_sim_parity": (
-            False, "needs the Isaac Sim adapter and captured effective runtime settings"
+            True, "aligned K1/K2 match Isaac Sim 5.1.0 within the frozen gates; see "
+                  "experiments/isaac_reference/ and the Phase 2 Isaac parity record"
         ),
     },
 }
@@ -197,9 +219,13 @@ def acceptance_key_ledger(spec) -> dict:
     mode = data["controller"]["mode"]
     declared = set(data["acceptance"])
     consumed = dict(ACCEPTANCE_KEY_GATES)
+    deferred_table = DEFERRED_ACCEPTANCE_KEYS
     if mode == "force":
         consumed.update(FORCE_ACCEPTANCE_KEY_GATES)
-    deferred = set(DEFERRED_ACCEPTANCE_KEYS)
+    elif mode == "multi_trajectory":
+        consumed.update(MULTI_ACCEPTANCE_KEY_GATES)
+        deferred_table = MULTI_DEFERRED_ACCEPTANCE_KEYS
+    deferred = set(deferred_table)
     unhandled = sorted(declared - set(consumed) - deferred)
     unknown = sorted((set(consumed) | deferred) - declared)
     if unhandled:
@@ -221,7 +247,7 @@ def acceptance_key_ledger(spec) -> dict:
     return {
         "controller_mode": mode,
         "consumed": {key: list(gates) for key, gates in sorted(consumed.items())},
-        "deferred": dict(sorted(DEFERRED_ACCEPTANCE_KEYS.items())),
+        "deferred": dict(sorted(deferred_table.items())),
     }
 
 

@@ -126,8 +126,10 @@ def test_the_boundaries_are_restated_not_left_to_the_reader(k1_html):
 def test_the_milestone_is_not_overstated(k2_run, k2_experiment):
     report = acceptance_report(k2_run)
     html = build_report(k2_run, report, k2_experiment.effective_runtime())
-    assert "K2-A" in html
-    assert "isaac_sim_parity" in html
+    # K2 is complete (parity delivered 2026-11-25) only with its scope stated next to it.
+    assert report["milestone"]["milestone_complete"]
+    assert "<code>K2</code>" in html
+    assert "摩擦与切向力未比对" in html
 
 
 def test_writing_returns_a_record_of_what_was_drawn(tmp_path, k1_run, k1_experiment):

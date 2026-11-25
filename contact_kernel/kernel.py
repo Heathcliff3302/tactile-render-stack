@@ -240,7 +240,15 @@ class RigidContactKernel:
         }
         return states
 
-    def step(self, commands: dict[str, Vec3], *, phase: str) -> KernelFrame:
+    def step(self, commands: dict[str, Vec3], *, phase: str,
+             probe_phases: dict[str, str] | None = None) -> KernelFrame:
+        """Advance every probe one control interval.
+
+        ``probe_phases`` (P2.2.2) lets each probe carry its own segment label
+        when several independent segment machines share one kernel. Probes it
+        does not name fall back to ``phase``; the single-probe call sites pass
+        no mapping, so their pair frames are labelled exactly as before.
+        """
         solutions = self.solver.advance_control_step(commands)
         time_s = self.solver.time_s
         step_index = self.solver.control_step
@@ -249,7 +257,8 @@ class RigidContactKernel:
         for solution in solutions:
             key = self.pair_key(solution.probe_id, solution.surface_id)
             order.append(key)
-            pairs[key] = self._build_pair(key, solution, phase, time_s, step_index)
+            pair_phase = phase if probe_phases is None else probe_phases.get(solution.probe_id, phase)
+            pairs[key] = self._build_pair(key, solution, pair_phase, time_s, step_index)
         return KernelFrame(
             schema_version=KERNEL_SCHEMA_VERSION,
             backend_id=self.config.backend_id,

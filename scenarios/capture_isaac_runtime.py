@@ -175,8 +175,15 @@ def capture(stage, world, probe, cube) -> dict:
     fields["velocity_iterations"] = _read_attr(
         probe_prim, "physxRigidBody:solverVelocityIterationCount", cast=int
     )
-    fields["sleep_enabled"] = _read_attr(probe_prim, "physxRigidBody:disableGravity")
+    # PhysX has no "sleep enabled" flag: a body can sleep iff its sleep threshold is > 0.
     fields["sleep_threshold"] = _read_attr(probe_prim, "physxRigidBody:sleepThreshold")
+    threshold = fields["sleep_threshold"]
+    fields["sleep_enabled"] = _record(
+        None if threshold["value"] is None else bool(threshold["value"] > 0),
+        threshold["source"], threshold["origin"],
+        "derived: sleeping is possible iff physxRigidBody:sleepThreshold > 0",
+    )
+    fields["gravity_disabled"] = _read_attr(probe_prim, "physxRigidBody:disableGravity")
     fields["stabilization_threshold"] = _read_attr(
         probe_prim, "physxRigidBody:stabilizationThreshold"
     )
@@ -278,8 +285,8 @@ def main(argv=None) -> int:
         from isaacsim.core.api.objects import DynamicSphere, FixedCuboid
 
         try:
-            import isaacsim
-            result["host"]["isaac_sim_version"] = getattr(isaacsim, "__version__", "unknown")
+            from importlib.metadata import version
+            result["host"]["isaac_sim_version"] = version("isaacsim")
         except Exception:
             result["host"]["isaac_sim_version"] = "unknown"
         result["host"]["python"] = sys.version.split()[0]
@@ -365,12 +372,28 @@ def main(argv=None) -> int:
 
     except Exception:
         result["capture_errors"].append(traceback.format_exc())
-    finally:
-        try:
-            app.close()
-        except Exception:
-            pass
 
+    # Write before closing: SimulationApp.close() can end the process outright,
+    # so nothing after it is guaranteed to run.
+    status = _finish(result, args.output)
+    try:
+        app.close()
+    except Exception:
+        pass
+    return status
+
+
+def _jsonable(value):
+    """USD Gf values: quaternions become [w, x, y, z], anything iterable a list, the rest a string."""
+    if hasattr(value, "GetReal") and hasattr(value, "GetImaginary"):
+        return [float(value.GetReal()), *(float(c) for c in value.GetImaginary())]
+    try:
+        return [float(component) for component in value]
+    except TypeError:
+        return str(value)
+
+
+def _finish(result: dict, output: str) -> int:
     fields = result.get("fields", {})
     missing = [name for name in EXPECTED_FIELDS if name not in fields]
     unresolved = [
@@ -395,11 +418,11 @@ def main(argv=None) -> int:
             "still unresolved must stay unresolved in the K0 inventory"
         ),
     }
-    with open(args.output, "w", encoding="utf-8", newline="\n") as handle:
-        json.dump(result, handle, ensure_ascii=False, indent=2)
+    with open(output, "w", encoding="utf-8", newline="\n") as handle:
+        json.dump(result, handle, ensure_ascii=False, indent=2, default=_jsonable)
         handle.write("\n")
     print(json.dumps(result["summary"], ensure_ascii=False, indent=2))
-    print(f"\nwrote {args.output}")
+    print(f"\nwrote {output}", flush=True)
     if result["capture_errors"]:
         print("\nCAPTURE ERRORS (the JSON still holds whatever was read):")
         for error in result["capture_errors"]:

@@ -101,11 +101,13 @@ def make_schema():
         # is optional here. The acceptance ledger in validation/ is what makes
         # that conditional binding rather than merely permitted: it requires
         # the key exactly when the controller is in force mode.
+        # primary_patch_min_occupancy follows the same rule for
+        # multi_trajectory (P2.2.2): optional here, required by the ledger.
         "acceptance": obj({"contact_coverage_min": fraction, "slide_speed_tolerance_mps": positive,
             "slide_speed_pass_fraction_min": fraction, "hold_tangent_speed_max_mps": positive,
             "slide_settle_time_s": nonneg, "patch_coverage_min": fraction, "force_conservation_atol_n": positive,
             "resolution_force_spread_max": fraction, "release_contact_frames_max": {"const": 0},
-            "force_pass_fraction_min": fraction},
+            "force_pass_fraction_min": fraction, "primary_patch_min_occupancy": fraction},
             required=["contact_coverage_min", "slide_speed_tolerance_mps", "slide_speed_pass_fraction_min",
                       "hold_tangent_speed_max_mps", "slide_settle_time_s", "patch_coverage_min",
                       "force_conservation_atol_n", "resolution_force_spread_max", "release_contact_frames_max"]),
@@ -323,9 +325,90 @@ def force_cpu_reference(source):
     return data
 
 
+def multi_box_cpu_reference(source, spec_id="p2_multi_box_cpu"):
+    """P2.2.2 two-box CPU reference, derived from the Step 6.5 inventory.
+
+    Geometry, masses, timing, grid, segment parameters and every acceptance
+    threshold are inherited unchanged from ``step6_multi_64``. Two fields are
+    derived, and both are recorded in ``parameter_evidence``:
+
+    * ``sampling.kinematics_source`` becomes ``rigid_body``. A box footprint is
+      reported as one point per covered cell, placed at the cell centre (the
+      P2.2.1 ``box_uniform_area_weighted_proxy``). Those points do not move
+      while the box slides inside a cell and then jump by one cell width, so a
+      finite difference of them measures the grid, not the probe: one jump of
+      0.0078 m in 1/60 s reads as 0.47 m/s. The rigid-body twist is the only
+      velocity source this kernel can give a box honestly.
+    * ``acceptance.primary_patch_min_occupancy`` is promoted from
+      ``source_arguments`` with its Phase 1 value. Step 6.5's Patch-ID gate
+      needs it to separate primary from edge patches, and in
+      ``source_arguments`` no gate can read it — the same promotion K2 made
+      for ``force_pass_fraction_min``. The Phase 1 inventory is unchanged.
+    """
+    data = to_cpu_reference(
+        source, spec_id,
+        "Explicit CPU reference for P2.2.2: two rotation-locked boxes, one "
+        "independent segment machine and one stream per probe/surface pair. "
+        "No claim that unknown PhysX defaults have these values.",
+    )
+    data["sampling"]["kinematics_source"] = "rigid_body"
+    data["parameter_evidence"]["kinematics_source"] = (
+        "Derived: rigid_body instead of Step 6.5's contact_point_finite_difference. "
+        "Box contact points sit at covered-cell centres (P2.2.1 proxy) and jump "
+        "by one cell width as the box slides, so differencing them measures the "
+        "grid pitch, not the probe velocity."
+    )
+    data["acceptance"]["primary_patch_min_occupancy"] = (
+        data["source_arguments"]["primary_patch_min_occupancy"]
+    )
+    data["parameter_evidence"]["primary_patch_min_occupancy"] = (
+        "Promoted into this CPU reference's acceptance block, same value. "
+        "Phase 1 declared it in source_arguments only (run_step6_regression.py "
+        "multi_command override), where no gate could read it."
+    )
+    return data
+
+
+#: The K1 sphere, as declared by the K1 CPU reference. The mixed variant takes
+#: it verbatim rather than inventing a second sphere.
+K1_SPHERE = {"radius_m": .12, "mass_kg": .05}
+
+
+def multi_mixed_cpu_reference(source):
+    """P2.2.2 mixed-shape CPU reference: left box from Step 6.5, right K1 sphere.
+
+    Derived from :func:`multi_box_cpu_reference`. Only the right probe changes:
+    it becomes the K1 fingertip sphere (radius 0.12 m, 0.05 kg) at the same
+    start position, with ``z_contact_m`` and ``retract_distance_m`` recomputed
+    from that radius exactly as ``build_spec`` computes them for K1. Phase 1
+    never ran a mixed-shape scene, so this is a CPU-only scenario with no
+    Phase 1 counterpart.
+    """
+    data = multi_box_cpu_reference(source, "p2_multi_mixed_cpu")
+    data["description"] = (
+        "Explicit CPU reference for P2.2.2 mixed shapes: one rotation-locked "
+        "box and one rotation-locked sphere, one independent segment machine "
+        "and one stream per probe/surface pair. No Phase 1 counterpart."
+    )
+    right = data["probes"][1]
+    z_contact = .5 + K1_SPHERE["radius_m"]
+    right.update(shape="sphere", radius_m=K1_SPHERE["radius_m"], size_m=None,
+                 mass_kg=K1_SPHERE["mass_kg"], z_contact_m=z_contact,
+                 retract_distance_m=1.2 - z_contact)
+    data["parameter_evidence"]["probes"] = (
+        "Derived: /World/ProbeRight replaced by the K1 sphere (radius 0.12 m, "
+        "mass 0.05 kg, k1_single_probe_cpu); z_contact and retract distance "
+        "recomputed from the radius as build_spec does for K1. /World/ProbeLeft "
+        "is the Step 6.5 box unchanged."
+    )
+    return data
+
+
 CPU_REFERENCES = (
     ("k1_single_probe_cpu", "step6_trajectory_64", to_cpu_reference),
     ("k2_force_cpu", "step6_force_64", lambda source, _: force_cpu_reference(source)),
+    ("p2_multi_box_cpu", "step6_multi_64", lambda source, _: multi_box_cpu_reference(source)),
+    ("p2_multi_mixed_cpu", "step6_multi_64", lambda source, _: multi_mixed_cpu_reference(source)),
 )
 
 
@@ -343,7 +426,7 @@ def load_committed(spec_id):
 
 
 def write_cpu_references(specs=None):
-    """Rebuild the two explicit CPU references. Returns their spec IDs."""
+    """Rebuild the explicit CPU references. Returns their spec IDs."""
     from tactile_contract.experiment_spec import ExperimentSpec
 
     written = []
@@ -383,7 +466,7 @@ def main(argv=None):
         write(ROOT / f"scenarios/k0/{spec.spec_id}.json", spec.to_dict())
         specs[spec.spec_id] = spec
     write_cpu_references(specs)
-    print("Wrote 5 source inventories and 2 explicit CPU references.")
+    print(f"Wrote 5 source inventories and {len(CPU_REFERENCES)} explicit CPU references.")
 
 
 if __name__ == "__main__":

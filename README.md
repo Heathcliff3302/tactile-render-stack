@@ -1,5 +1,7 @@
 # tactile-render-stack
 
+> **Phase 2 已收尾（2026-11-25）。** K0–K2 完成；与 Isaac Sim 的比对、逐步记录和后续待办见 [`docs/step_record/`](docs/step_record/)，从 [`10-Phase2总推进.md`](docs/step_record/10-Phase2总推进.md) 读起。
+
 把虚拟世界里的一次接触，变成可以驱动执行器的标准触觉目标。
 
 图形渲染把场景变成像素。触觉渲染要把接触变成力、振动和形变，中间同样需要一套统一的信息链路，而不是让每种执行器各自去猜物体是什么手感。这个仓库就是那条链路的工程实现。
@@ -34,9 +36,9 @@
 | 接触数据来源 | 状态 |
 | --- | --- |
 | 自研 CPU 接触内核 `contact_kernel/` | **已实现**，仅依赖标准库 |
-| Isaac Sim | 契约、实验规格和比较闸门已就位；适配器是 K2 唯一剩余交付物，需要一台装有 Isaac Sim 的机器 |
-| Unity 场景输入 | K5（Unity 内置物理也是 PhysX，接入时保留后端标识，避免出现第二个求解器） |
-| 真实传感器实测 | Phase 3 |
+| Isaac Sim | **已比对（2026-11-25）**：参数对齐时 K1/K2 与 Isaac Sim 5.1.0 一致；四份闭环记录存于 `experiments/isaac_reference/`，作为 pytest 回归。范围与限制见 `docs/step_record/17-Phase2收尾-Isaac比对.md` |
+| Unity 场景输入 | 未做（Unity 内置物理也是 PhysX，接入时保留后端标识，避免出现第二个求解器） |
+| 真实指尖数据 | Phase 3 |
 
 Isaac Sim 由此从"运行时依赖"变成"可选的接触数据来源之一"。
 
@@ -74,7 +76,7 @@ python -m venv .venv
 
 .venv/Scripts/python.exe -m mechanics.run_k1          # 跑 K1，写出完整运行目录
 .venv/Scripts/python.exe -m mechanics.run_k2          # 跑 K2 力控
-.venv/Scripts/python.exe -m pytest -q                 # 250 个测试
+.venv/Scripts/python.exe -m pytest -q                 # 325 个测试，含 Isaac 存档回归
 ```
 
 不需要 Isaac Sim，不需要 GPU。`contact_kernel/` 只依赖标准库，其余部分只依赖 `jsonschema` 和 `numpy`。
@@ -124,10 +126,10 @@ docs/                设计、决策、复现说明
 | --- | --- |
 | K0 基线与实验契约 | 已完成：参数清单、原始证据索引、CPU 参考规格、比较 profile |
 | K1 单探头刚体模式 | **已完成**：解耦内核、五层闭环、十项门槛、字段裁决，见 [`docs/k1_single_probe_rigid.md`](docs/k1_single_probe_rigid.md) |
-| K2 Step 6 控制与回归 | **K2-A 已完成**：CPU 刚体力控参考链路，PI 法向力调节、1 N 目标、13 通道稠密触觉场、曲线报告、十三项门槛，见 [`docs/plans/k2-implementation.md`](docs/plans/k2-implementation.md)。K2 未完成，尚缺 Isaac Sim 适配器与有效参数采集 |
-| K3 多探头与分辨率 | 盒形探头、多物体对独立流、多 Patch、32/64/128 网格 |
-| K4 模型接触区域 | Hertz、弹性地基、压力场、守恒栅格、材料单元独立状态 |
-| K5 Unity 与最小五层闭环 | 场景输入、执行器标定、误差与延迟报告 |
+| K2 Step 6 控制与回归 | **已完成（2026-11-25）**：CPU 刚体力控参考链路，PI 法向力调节、1 N 目标、13 通道稠密触觉场、曲线报告、十三项门槛；Isaac Sim 参数采集、闭环适配器与比对报告见 [`docs/step_record/17-Phase2收尾-Isaac比对.md`](docs/step_record/17-Phase2收尾-Isaac比对.md) |
+| P2.2 多探头与分辨率 | 盒形探头多 Cell 完成；多探头独立流已实现、未验收；分辨率回归冻结。见 [`docs/step_record/15-P2.2-多探头与盒形探头.md`](docs/step_record/15-P2.2-多探头与盒形探头.md) |
+| K4 模型接触区域 | 移交 Phase 3，作为物理基线 |
+| K5 Unity 与最小五层闭环 | 层 5 出界（由硬件厂商负责）；遗留项见 [`docs/step_record/20-后续待办清单.md`](docs/step_record/20-后续待办清单.md) |
 
 ## 边界声明
 

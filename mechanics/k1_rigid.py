@@ -114,6 +114,8 @@ class K1Run:
 
 #: Controller modes with a segment machine and an acceptance story.
 SUPPORTED_MODES = ("trajectory", "force")
+#: Probe shapes the kernel solves (rotation locked, fixed top face).
+SUPPORTED_SHAPES = ("sphere", "box")
 
 
 class RigidProbeExperiment:
@@ -134,8 +136,19 @@ class RigidProbeExperiment:
         data = spec.to_dict()
         if data["kind"] != "cpu_reference":
             raise ValueError("This experiment requires an explicit cpu_reference ExperimentSpec")
-        if len(data["probes"]) != 1 or data["probes"][0]["shape"] != "sphere":
-            raise ValueError("This experiment requires exactly one spherical probe")
+        # P2.2.2: one probe, sphere or box. The box path through the kernel is
+        # P2.2.1's; every layer above reads the kernel frame shape-agnostically.
+        # Several probes go through mechanics.multi_probe instead.
+        if len(data["probes"]) != 1:
+            raise ValueError(
+                "This experiment requires exactly one probe; several probes run "
+                "through mechanics.multi_probe.MultiProbeExperiment"
+            )
+        if data["probes"][0]["shape"] not in SUPPORTED_SHAPES:
+            raise ValueError(
+                f"Probe shape {data['probes'][0]['shape']!r} is not supported; "
+                f"supported shapes are {list(SUPPORTED_SHAPES)}"
+            )
         mode = data["controller"]["mode"]
         if mode not in SUPPORTED_MODES:
             raise ValueError(
@@ -427,8 +440,10 @@ class RigidProbeExperiment:
                 self.spec, kernel_config=self.kernel_config
             ),
             "isaac_sim_parity": (
-                "behaviour and conservation gates only; no claim of numeric "
-                "equality with unresolved PhysX settings"
+                "aligned-parameter K1/K2 compared with Isaac Sim 5.1.0 on 2026-11-25 "
+                "(rigid, single sphere, zero friction, normal contact): equal within "
+                "the frozen gates, contact points one step apart by reporting "
+                "convention. Friction and tangential force were not compared"
             ),
         }
 

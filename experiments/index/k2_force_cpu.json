@@ -13,7 +13,7 @@
   "spec_id": "k2_force_cpu",
   "spec_sha256": "4879f5e0ad6fc3c483be839a9fab7a0a1597e62b9342e65ae895f258ad41088c",
   "conditions_sha256": "bf72725e04fa7c58795feac83c5c2ddb871d585ea0da2f25f452fbd253690a75",
-  "manifest_sha256": "cd2c838c7ef84991ff969ad2a7e45834b6c392d93fb6c0fbabbce77035dd41c9",
+  "manifest_sha256": "60cbe512c3435472d80a442509613f7527bd66df7c8bcf720b2f7532305b01d4",
   "run_directory": "k2-force-cpu",
   "frames": 797,
   "simulated_time_s": 13.283333333333333,
@@ -93,8 +93,8 @@
     "schema": "milestone-status/v1",
     "controller_mode": "force",
     "milestone": "K2",
-    "milestone_complete": false,
-    "sub_milestone": "K2-A",
+    "milestone_complete": true,
+    "sub_milestone": "K2",
     "sub_milestone_scope": "CPU reference backend, single scenario",
     "deliverables": {
       "cpu_reference_run": {
@@ -114,13 +114,11 @@
         "note": "measured on the kernel, covering damping and the realised drive"
       },
       "isaac_sim_parity": {
-        "delivered": false,
-        "note": "needs the Isaac Sim adapter and captured effective runtime settings"
+        "delivered": true,
+        "note": "aligned K1/K2 match Isaac Sim 5.1.0 within the frozen gates; see experiments/isaac_reference/ and the Phase 2 Isaac parity record"
       }
     },
-    "outstanding": [
-      "isaac_sim_parity"
-    ],
+    "outstanding": [],
     "note": "a passing run establishes run_acceptance_passed on one backend and one scenario; milestone_complete additionally requires every deliverable above"
   },
   "k1_acceptance_complete": true,
@@ -140,17 +138,17 @@
     {
       "path": "effective_runtime.json",
       "role": "summary",
-      "sha256": "ebb130870918b85d4a4b61ad122371227a8826ba37fd475795961ab27c8ecc29"
+      "sha256": "2e34b5a36ffc3b5f07352f677398f7409b43248c5ff9fe77fb8fe557a1321e4b"
     },
     {
       "path": "acceptance.json",
       "role": "summary",
-      "sha256": "613e44e88b5285b47b2c88769f6c722ec371965714515bc4ccfbdb9f9a973009"
+      "sha256": "ebacffb20b9a0425be9b979f34ec23d8065f6b627756679573b263ebd9f21b5d"
     },
     {
       "path": "environment.json",
       "role": "summary",
-      "sha256": "874d4219de97fda89fefc12bbf98261d06fbeef6b7ca402986c2920695f4ab4b"
+      "sha256": "2770034833e1dafa59398699d7fada13ebedeb57ab6e5450d370ce92b1afb15e"
     },
     {
       "path": "actual_commands.jsonl",
@@ -210,7 +208,7 @@
     {
       "path": "contact_report.html",
       "role": "report",
-      "sha256": "6d520c3ec16e5127094b452c9ae24f3e4df2725896f7286b3841d0bc1a0ce494"
+      "sha256": "430e0700f19d845771f6eae52dcc513cc292c1958f95956e5262ae74d192d438"
     },
     {
       "path": "curve_report_index.json",
